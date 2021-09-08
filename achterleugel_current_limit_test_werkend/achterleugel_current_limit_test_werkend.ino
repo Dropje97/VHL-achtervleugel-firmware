@@ -8,7 +8,7 @@ const uint8_t pinB    = 3;                              // Rotary encoder Pin B
 
 const int8_t  kp      = -50;
 const int8_t  ki      = -2;
-const int8_t  kd      = -100;
+const int8_t  kd      = -50;
 
 const int16_t start_PWM = 80; // de motor begint direct te draaien op de startwaarde of langzamer als er minder gas nodig is, daana neemt de smoothing het over.
 const uint8_t smoothing_time = 20; //tijd in millis tussen het verhogen van het PWM van de motor zodat deze rustig versneld. hogere waarde is langzamer versnellen.
@@ -156,6 +156,7 @@ void loop()
   if (direction != previus_direction) {
     direction_change = true;
     previus_direction = direction;
+    
   } else if (timer - last_direction_change >= direction_change_delay) {
     last_direction_change = timer;
     direction_change = false;
@@ -176,11 +177,11 @@ void loop()
 
     //====================================PID===============================
     error = setpoint_pulsen - encoder_pulsen;
-    diff_error = error - previus_error;
+    diff_error = 0.5 * (error - previus_error) + 0.5 * diff_error;
     previus_error = error;
 
     P = kp * error;
-    if ((abs(P) < 400) && (abs(PID) < 400)) {
+    if (((abs(P) < 400) && (abs(PID) < 400)) || (direction_change == true)) {
       I = ki * error  + I;
     }
     D = kd * diff_error;
@@ -188,7 +189,7 @@ void loop()
 
     I = constrain(I, -100, 100);
 
-    PID = P + I;
+    PID = P + I + D;
     PID = constrain(PID, -400, 400);
 
     setpoint_PWM = PID;
