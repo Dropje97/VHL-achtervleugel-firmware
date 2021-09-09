@@ -72,7 +72,10 @@ void dmpDataReady() {
   mpuInterrupt = true;
 }
 
-
+void calibratie() {
+  mpu.CalibrateAccel(6);
+  mpu.CalibrateGyro(6);
+}
 
 // ================================================================
 // ===                      INITIAL SETUP                       ===
@@ -119,17 +122,17 @@ void setup() {
   devStatus = mpu.dmpInitialize();
 
   // supply your own gyro offsets here, scaled for min sensitivity
-  mpu.setXGyroOffset(51);
-  mpu.setYGyroOffset(8);
-  mpu.setZGyroOffset(21);
-  mpu.setXAccelOffset(1150);
-  mpu.setYAccelOffset(-50);
-  mpu.setZAccelOffset(1060);
+  mpu.setXGyroOffset(163);
+  mpu.setYGyroOffset(99);
+  mpu.setZGyroOffset(-87);
+  mpu.setXAccelOffset(-1930);
+  mpu.setYAccelOffset(-428);
+  mpu.setZAccelOffset(1290);
   // make sure it worked (returns 0 if so)
   if (devStatus == 0) {
     // Calibration Time: generate offsets and calibrate our MPU6050
-    mpu.CalibrateAccel(6);
-    mpu.CalibrateGyro(6);
+    
+   //calibratie(); //                 uncomment calibratie(); om de offset te bepalen. vul de waarde hierboven in en comment calibratie zodat de waarde vast staat.
     Serial.println();
     mpu.PrintActiveOffsets();
     // turn on the DMP, now that it's ready
@@ -173,7 +176,7 @@ void loop() {
   // if programming failed, don't try to do anything
   if (!dmpReady) return;
   // read a packet from FIFO
-  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
+  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet
 
 #ifdef OUTPUT_READABLE_YAWPITCHROLL
     // display Euler angles in degrees
