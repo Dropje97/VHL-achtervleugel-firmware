@@ -15,7 +15,7 @@ const uint8_t smoothing_time = 20;           //tijd in millis tussen het verhoge
 const uint8_t amps_poll_interval = 1;        //tijd tussen de metingen van het stroomverbuik.
 const uint8_t serial_print_interval = 50;    //tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  //tijd die de motor om de rem staat wanneer die van richting verandert.
-const uint8_t PID_interval = 20;             // iedere 20ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
+const uint8_t PID_interval = 20;             //iedere 20ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
 
 volatile int encoder_pulsen = 0;
 volatile int encoder_pulsen_prev = encoder_pulsen;
@@ -49,6 +49,8 @@ bool overcurrent = false;
 bool direction_change = false;
 bool direction = 0;  // 0= negatief 1=positief
 bool previus_direction = direction;
+uint8_t CAN_error = 0;  //1= motor disconnect
+
 void setup() {
   Serial.begin(2000000);
   Serial.println("Dual VNH5019 Motor Shield");
@@ -100,13 +102,11 @@ void loop() {
   // setpoint_PWM = map(pot_val, 0, 1023, -400, 400);
   setpoint_pulsen = map(pot_val, 0, 1023, -400, 400);
 
-
-  //====================== smoothing acceleratie ======================================
+  //====================== smoothing acceleratie + debug ======================================
 
   int16_t setpoint_PWM_last_PWM = abs(setpoint_PWM) - abs(last_PWM);
 
   smoothing_PWM = sqrt(abs(setpoint_PWM_last_PWM));
-
 
   if ((setpoint_PWM > start_PWM) && (setpoint_PWM - last_PWM >= smoothing_PWM)) {
     if (last_PWM < start_PWM) {
@@ -121,6 +121,12 @@ void loop() {
 
   } else if (setpoint_PWM > 0) {
     PWM = setpoint_PWM;
+
+    if ((PWM > 200) && (amps < 200) && (PWM - last_PWM > 0)) {  // voor debug
+      CAN_error = 1;
+    } else {
+      CAN_error = 0;
+    }
     last_PWM = PWM;
   }
 
@@ -137,6 +143,11 @@ void loop() {
 
   } else if (setpoint_PWM < 0) {
     PWM = setpoint_PWM;
+    if ((PWM < -200) && (amps < 200) && (PWM - last_PWM < 0)) {  // voor debug
+      CAN_error = 1;
+    } else {
+      CAN_error = 0;
+    }
     last_PWM = PWM;
   }
 
@@ -146,7 +157,7 @@ void loop() {
     last_amps_poll = timer;
     amps = amps * 0.95 + md.getM2CurrentMilliamps() * 0.05;
 
-    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.00105 + 600;
+    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 1000;
     if (amps > overcurrent_limit) {
       overcurrent = true;
       md.setM2Brake(400);
@@ -199,7 +210,11 @@ void loop() {
     PID = P + I + D;
     PID = constrain(PID, -400, 400);
 
-    setpoint_PWM = PID;
+    if (CAN_error == 1) {
+      setpoint_PWM = 0;
+    } else {
+      setpoint_PWM = PID;
+    }
   }
 
   //============================================================SerialPrints============================================
@@ -218,8 +233,6 @@ void loop() {
     Serial.print(" - ");
     Serial.println(D);
 
-
-
     /*
       //Serial.print(last_PWM);
       //Serial.print(" - ");
@@ -237,8 +250,6 @@ void loop() {
       Serial.print(md.getM2CurrentMilliamps());
       Serial.print(" - ");
       Serial.println(overcurrent_limit);
-
-
     */
   }
 }
