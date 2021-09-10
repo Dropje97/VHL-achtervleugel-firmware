@@ -2,6 +2,10 @@
 // 6/21/2012 by Jeff Rowberg <jeff@rowberg.net>
 // Updates should (hopefully) always be available at https://github.com/jrowberg/i2cdevlib
 
+// bednodigde libraries om berichten over de can te versturen en te ontvangen
+#include <can.h>
+#include <mcp2515.h>
+
 // I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
 // for both classes must be in the include path of your project
 #include "I2Cdev.h"
@@ -14,6 +18,8 @@
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
 #include "Wire.h"
 #endif
+
+MCP2515 mcp2515(9);
 
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
@@ -39,6 +45,7 @@ MPU6050 mpu;
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
 #define LED_PIN 13 // (Arduino is 13, Teensy is 11, Teensy++ is 6)
 bool blinkState = false;
+uint32_t last_send = 0;
 
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
@@ -90,6 +97,10 @@ void setup() {
   Fastwire::setup(400, true);
 #endif
 
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_125KBPS);
+  mcp2515.setNormalMode();
+
   // initialize serial communication
   // (115200 chosen because it is required for Teapot Demo output, but it's
   // really up to you depending on your project)
@@ -131,8 +142,8 @@ void setup() {
   // make sure it worked (returns 0 if so)
   if (devStatus == 0) {
     // Calibration Time: generate offsets and calibrate our MPU6050
-    
-   //calibratie(); //                 uncomment calibratie(); om de offset te bepalen. vul de waarde hierboven in en comment calibratie zodat de waarde vast staat.
+
+    calibratie(); //                 uncomment calibratie(); om de offset te bepalen. vul de waarde hierboven in en comment calibratie zodat de waarde vast staat.
     Serial.println();
     mpu.PrintActiveOffsets();
     // turn on the DMP, now that it's ready
@@ -184,18 +195,42 @@ void loop() {
     mpu.dmpGetGravity(&gravity, &q);
     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
     Serial.print("ypr\t");
-    Serial.print(ypr[0] * 180 / M_PI);
+    Serial.print(ypr[0] * 180 / M_PI, 10);
     Serial.print("\t");
-    Serial.print(ypr[1] * 180 / M_PI);
+    Serial.print(ypr[1] * 180 / M_PI, 10);
     Serial.print("\t");
-    Serial.print(ypr[2] * 180 / M_PI);
+    Serial.print(ypr[2] * 180 / M_PI, 10);
 
     Serial.println();
-
 #endif
+    if (millis() - last_send > 100) {
+       last_send = millis();
+      send_can_data();
+    }
+
+
 
     // blink LED to indicate activity
     blinkState = !blinkState;
     digitalWrite(LED_PIN, blinkState);
   }
+}
+
+can_frame float_to_frame(float f, uint16_t can_id) {
+  byte bytes[sizeof(float)];
+  memcpy(bytes, &f, sizeof(float));
+  can_frame ret;
+  for (uint8_t i = 0; i < sizeof(float); i++) {
+    ret.data[i] = bytes[i];
+  }
+  ret.can_id = can_id;
+  ret.can_dlc = sizeof(float);
+  return ret;
+}
+
+void send_can_data() {
+  Serial.print("CAN_DATA");
+  mcp2515.sendMessage(&float_to_frame(ypr[1], 100));
+  delay(2);
+  mcp2515.sendMessage(&float_to_frame(ypr[2], 101));
 }
