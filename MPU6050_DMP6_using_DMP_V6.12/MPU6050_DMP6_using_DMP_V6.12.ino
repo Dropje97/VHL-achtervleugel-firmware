@@ -189,26 +189,31 @@ void loop() {
   // read a packet from FIFO
   if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet
 
-#ifdef OUTPUT_READABLE_YAWPITCHROLL
     // display Euler angles in degrees
     mpu.dmpGetQuaternion(&q, fifoBuffer);
     mpu.dmpGetGravity(&gravity, &q);
     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    Serial.print("ypr\t");
-    Serial.print(ypr[0] * 180 / M_PI, 10);
-    Serial.print("\t");
-    Serial.print(ypr[1] * 180 / M_PI, 10);
-    Serial.print("\t");
-    Serial.print(ypr[2] * 180 / M_PI, 10);
 
+    pitch = ypr[1] * 180 / M_PI;  // radians naar graden
+    roll = ypr[2] * 180 / M_PI;   // radians naar graden
+
+    Serial.print("pr\t");
+    Serial.print(pitch);
+    Serial.print("\t");
+    Serial.print(roll);
     Serial.println();
-#endif
-    if (millis() - last_send > 100) {
-       last_send = millis();
-      send_can_data();
-    }
 
-
+      if (millis() - last_send >= 10) {
+        last_send = millis();
+        if(uint8_t counter == 0){
+        mcp2515.sendMessage(&float_to_frame(pitch, 100));
+        counter++;
+        }
+        else if (counter == 1) {
+        mcp2515.sendMessage(&float_to_frame(roll, 101));
+        counter = 0;
+        }
+       }
 
     // blink LED to indicate activity
     blinkState = !blinkState;
@@ -226,11 +231,4 @@ can_frame float_to_frame(float f, uint16_t can_id) {
   ret.can_id = can_id;
   ret.can_dlc = sizeof(float);
   return ret;
-}
-
-void send_can_data() {
-  Serial.print("CAN_DATA");
-  mcp2515.sendMessage(&float_to_frame(ypr[1], 100));
-  delay(2);
-  mcp2515.sendMessage(&float_to_frame(ypr[2], 101));
 }
