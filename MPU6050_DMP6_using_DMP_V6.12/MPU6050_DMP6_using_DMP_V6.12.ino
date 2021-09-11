@@ -65,6 +65,9 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
+float pitch;
+float roll;
+
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x00, '\r', '\n' };
 
@@ -121,12 +124,6 @@ void setup() {
   // verify connection
   Serial.println(F("Testing device connections..."));
   Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
-
-  // wait for ready
-  Serial.println(F("\nSend any character to begin DMP programming and demo: "));
-  while (Serial.available() && Serial.read()); // empty buffer
-  while (!Serial.available());                 // wait for data
-  while (Serial.available() && Serial.read()); // empty buffer again
 
   // load and configure the DMP
   Serial.println(F("Initializing DMP..."));
@@ -203,9 +200,11 @@ void loop() {
     Serial.print(roll);
     Serial.println();
 
+static uint8_t counter;
+
       if (millis() - last_send >= 10) {
         last_send = millis();
-        if(uint8_t counter == 0){
+        if(counter == 0){
         mcp2515.sendMessage(&float_to_frame(pitch, 100));
         counter++;
         }
