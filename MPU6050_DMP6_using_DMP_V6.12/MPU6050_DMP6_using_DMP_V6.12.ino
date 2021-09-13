@@ -200,19 +200,12 @@ void loop() {
     Serial.print(roll);
     Serial.println();
 
-static uint8_t counter;
+    //static uint8_t counter;
 
-      if (millis() - last_send >= 10) {
-        last_send = millis();
-        if(counter == 0){
-        mcp2515.sendMessage(&float_to_frame(pitch, 100));
-        counter++;
-        }
-        else if (counter == 1) {
-        mcp2515.sendMessage(&float_to_frame(roll, 101));
-        counter = 0;
-        }
-       }
+    if (millis() - last_send >= 19) {
+      last_send = millis();
+      mcp2515.sendMessage(&float_to_frame_twice(pitch,  roll, 100));
+    }
 
     // blink LED to indicate activity
     blinkState = !blinkState;
@@ -220,14 +213,15 @@ static uint8_t counter;
   }
 }
 
-can_frame float_to_frame(float f, uint16_t can_id) {
-  byte bytes[sizeof(float)];
+can_frame float_to_frame_twice(float f, float f2, uint16_t can_id) {
+  byte bytes[sizeof(float) * 2];
   memcpy(bytes, &f, sizeof(float));
+  memcpy(bytes + sizeof(float), &f2, sizeof(float));
   can_frame ret;
-  for (uint8_t i = 0; i < sizeof(float); i++) {
+  for (uint8_t i = 0; i < sizeof(float) * 2; i++) {
     ret.data[i] = bytes[i];
   }
   ret.can_id = can_id;
-  ret.can_dlc = sizeof(float);
+  ret.can_dlc = sizeof(float) * 2;
   return ret;
 }
