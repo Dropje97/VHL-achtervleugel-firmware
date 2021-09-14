@@ -253,13 +253,13 @@ void loop() {
       Serial.println(overcurrent_limit);
     */
   }
-  mcp2515.sendMessage(&int_to_frame(setpoint_PWM, 301));
-  read_CAN_data();
+  mcp2515.sendMessage(&int_to_frame(setpoint_PWM, 51)); //we send the setpoint_PWM as set by the PID to can ID 51
+  read_CAN_data(); //read can data
 }
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
-    if (canMsg.can_id == 0x33) {
+    if (canMsg.can_id == 0xC8) { //if can msg ID is 200 in hex
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]); //byte 4-5 is int16_t pulsen achter
     }
 
