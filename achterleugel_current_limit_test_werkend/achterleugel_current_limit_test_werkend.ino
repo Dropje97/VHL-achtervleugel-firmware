@@ -1,5 +1,8 @@
 #include "DualVNH5019MotorShield.h"
+#include "can.h"
+#include "mcp2515.h"
 
+MCP2515 mcp2515(4); //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(7, 8, 9, 12, A1, 7, 8, 10, 12, A1);
 
 const uint8_t pot_pin = A2;
@@ -50,6 +53,9 @@ bool direction_change = false;
 bool direction = 0;  // 0= negatief 1=positief
 bool previus_direction = direction;
 uint8_t CAN_error = 0;  //1= motor disconnect
+
+struct can_frame canMsg;
+int16_t CAN_setpoint_pulsen;
 
 void setup() {
   Serial.begin(2000000);
@@ -200,7 +206,7 @@ void loop() {
     //previus_error = error;
 
     P = kp * error;
-    if (((abs(P) < 400) && (abs(PID) < 400)) || (direction_change == true)) {  // update de I alleen wanneer de motor nog niet op vol vermogen draait en niet op de rem staat omdat ie van richting verandert.
+    if (((abs(P) < 400) && (abs(PID) < 400)) || (direction_change == false)) {  // update de I alleen wanneer de motor nog niet op vol vermogen draait en niet op de rem staat omdat ie van richting verandert.
       I = ki * error + I;
     }
     //D = kd * diff_error;
@@ -209,12 +215,7 @@ void loop() {
 
     PID = P + I + D;
     PID = constrain(PID, -400, 400);
-
-    if (CAN_error == 1) {
-      setpoint_PWM = 0;
-    } else {
-      setpoint_PWM = PID;
-    }
+    setpoint_PWM = PID;
   }
 
   //============================================================SerialPrints============================================
@@ -252,4 +253,36 @@ void loop() {
       Serial.println(overcurrent_limit);
     */
   }
+  mcp2515.sendMessage(&int_to_frame(setpoint_PWM, 301));
+  read_CAN_data();
+}
+
+void read_CAN_data() {
+  if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
+    if (canMsg.can_id == 0x33) {
+      CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]); //byte 4-5 is int16_t pulsen achter
+    }
+
+  }
+}
+
+
+can_frame int_to_frame(int16_t i16, uint16_t can_id) {
+  byte bytes[sizeof(int16_t)]; //make an array and reserve the size of the datatype we want to send
+  memcpy(bytes, &i16, sizeof(int16_t)); // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  can_frame ret; //make a frame called "ret"
+  for (uint8_t i = 0; i < sizeof(int16_t); i++) { //basic counter
+    ret.data[i] = bytes[i]; //copy the data from bytes to their respective location in ret.bytes
+  }
+  ret.can_id = can_id; //set the can id of "ret" to our can id
+  ret.can_dlc = sizeof(int16_t); //set the dlc to the size of our data type (int16)
+  return ret; //return the frame
+}
+
+int16_t int16_from_can(uint8_t b1, uint8_t b2)
+{
+  // maakt van twee bytes een int16_t
+  int16_t ret;
+  ret = b1 | (int16_t)b2 << 8;
+  return ret;
 }
