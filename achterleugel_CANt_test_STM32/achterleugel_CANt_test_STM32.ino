@@ -227,7 +227,7 @@ setpoint_pulsen = constrain(CAN_setpoint_pulsen, 0, max_pulsen);
     }
     //D = kd * diff_error;
 
-    I = constrain(I, -200, 2 00);
+    I = constrain(I, -200, 200);
 
     PID = P + I + D;
     PID = constrain(PID, -400, 400);
