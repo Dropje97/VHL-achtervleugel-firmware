@@ -1,9 +1,14 @@
 #include "DualVNH5019MotorShield.h"
 #include "can.h"
 #include "mcp2515.h"
-
-MCP2515 mcp2515(4); //compleet willekeurige pin want ER WAS NOG GEEN PIN
-DualVNH5019MotorShield md(7, 8, 9, 12, A1, 7, 8, 10, 12, A1);
+/*
+  #include "arduino.h"
+  #include "stdlib.h"
+  #include "string.h"
+  #include "stdio.h"
+*/
+MCP2515 mcp2515(10); //compleet willekeurige pin want ER WAS NOG GEEN PIN
+DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 9, 6, A1);
 
 const uint8_t pot_pin = A2;
 const uint8_t pinA = 2;  // Rotary encoder Pin A
@@ -19,6 +24,8 @@ const uint8_t amps_poll_interval = 1;        //tijd tussen de metingen van het s
 const uint8_t serial_print_interval = 50;    //tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  //tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 20;             //iedere 20ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
+const uint16_t CAN_ID = 51;
+
 
 volatile int encoder_pulsen = 0;
 volatile int encoder_pulsen_prev = encoder_pulsen;
@@ -48,12 +55,15 @@ float I = 0;
 float D = 0;
 int32_t PID = 0;
 
+int16_t i16;
+
 bool overcurrent = false;
 bool direction_change = false;
 bool direction = 0;  // 0= negatief 1=positief
 bool previus_direction = direction;
 uint8_t CAN_error = 0;  //1= motor disconnect
 
+struct can_frame ret;
 struct can_frame canMsg;
 int16_t CAN_setpoint_pulsen;
 
@@ -61,6 +71,11 @@ void setup() {
   Serial.begin(2000000);
   Serial.println("Dual VNH5019 Motor Shield");
   md.init();
+
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_125KBPS);
+  mcp2515.setNormalMode();
+
   pinMode(pot_pin, INPUT);
   pinMode(pinA, INPUT_PULLUP);  // Set Pin_A as input
   pinMode(pinB, INPUT_PULLUP);  // Set Pin_B as input
@@ -70,33 +85,36 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(pinB), anders, CHANGE);
 }
 void iets() {
-  cli();                 //stop interrupts happening before we read pin values
-  reading = PIND & 0xC;  // read all eight pin values then strip away all but pinA and pinB's values
-  if (reading == B00001100) {
+  /*
+    //  cli();                 //stop interrupts happening before we read pin values
+    reading = PIND & 0xC;  // read all eight pin values then strip away all but pinA and pinB's values
+    if (reading == B00001100) {
     encoder_pulsen--;  //decrement the encoder's position count
-  } else if (reading == B00000000) {
+    } else if (reading == B00000000) {
     encoder_pulsen--;
-  } else if (reading == B00000100) {
+    } else if (reading == B00000100) {
     encoder_pulsen++;
-  } else if (reading == B00001000) {
+    } else if (reading == B00001000) {
     encoder_pulsen++;
-  }
-  sei();  //restart interrupts
+    }
+    //  sei();  //restart interrupts
+  */
 }
 
 void anders() {
-  cli();                 //stop interrupts happening before we read pin values
-  reading = PIND & 0xC;  // read all eight pin values then strip away all but pinA and pinB's values
-  if (reading == B00001100) {
-    encoder_pulsen++;  //increment the encoder's position count
-  } else if (reading == B00000000) {
-    encoder_pulsen++;
-  } else if (reading == B00000100) {
-    encoder_pulsen--;
-  } else if (reading == B00001000) {
-    encoder_pulsen--;
-  }
-  sei();  //restart interrupts
+  /*  cli();                 //stop interrupts happening before we read pin values
+    /* reading = PIND & 0xC;  // read all eight pin values then strip away all but pinA and pinB's values
+    if (reading == B00001100) {
+      encoder_pulsen++;  //increment the encoder's position count
+    } else if (reading == B00000000) {
+      encoder_pulsen++;
+    } else if (reading == B00000100) {
+      encoder_pulsen--;
+    } else if (reading == B00001000) {
+      encoder_pulsen--;
+    }
+    sei();  //restart interrupts
+  */
 }
 
 void loop() {
@@ -253,20 +271,31 @@ void loop() {
       Serial.println(overcurrent_limit);
     */
   }
-  mcp2515.sendMessage(&int_to_frame(setpoint_PWM, 51)); //we send the setpoint_PWM as set by the PID to can ID 51
+
+//============================================== send/read can data ===========================================================================
+
+  byte bytes[sizeof(int16_t)]; //make an array and reserve the size of the datatype we want to send
+  memcpy(bytes, &setpoint_PWM, sizeof(int16_t)); // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  for (uint8_t i = 0; i < sizeof(int16_t); i++) { //basic counter
+    ret.data[i] = bytes[i]; //copy the data from bytes to their respective location in ret.bytes
+  }
+  ret.can_id = CAN_ID; //set the can id of "ret" to our can id
+  ret.can_dlc = sizeof(int16_t); //set the dlc to the size of our data type (int16)
+  //  return ret; //return the frame
+  mcp2515.sendMessage(&ret); //we send the setpoint_PWM as set by the PID to can ID 51
+  
   read_CAN_data(); //read can data
 }
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
-    if (canMsg.can_id == 0xC8) { //if can msg ID is 200 in hex
+    if (canMsg.can_id == 0xC8) { //is can msg ID is 200 in hex
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]); //byte 4-5 is int16_t pulsen achter
     }
 
   }
 }
-
-
+/*
 can_frame int_to_frame(int16_t i16, uint16_t can_id) {
   byte bytes[sizeof(int16_t)]; //make an array and reserve the size of the datatype we want to send
   memcpy(bytes, &i16, sizeof(int16_t)); // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
@@ -278,7 +307,7 @@ can_frame int_to_frame(int16_t i16, uint16_t can_id) {
   ret.can_dlc = sizeof(int16_t); //set the dlc to the size of our data type (int16)
   return ret; //return the frame
 }
-
+*/
 int16_t int16_from_can(uint8_t b1, uint8_t b2)
 {
   // maakt van twee bytes een int16_t
