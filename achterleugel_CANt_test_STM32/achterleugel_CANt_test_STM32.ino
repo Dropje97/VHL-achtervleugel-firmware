@@ -81,12 +81,13 @@ void setup() {
   pinMode(pinB, INPUT_PULLUP);  // Set Pin_B as input
 
   // Atach a CHANGE interrupt to PinB and exectute the update function when this change occurs.
-  attachInterrupt(digitalPinToInterrupt(pinA), iets, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(pinB), anders, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(pinA), encoderA_ISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(pinB), encoderB_ISR, CHANGE);
 }
-void iets() {
+void encoderA_ISR() {
     //  cli();                 //stop interrupts happening before we read pin values
     reading = PIND & 0xC;  // read all eight pin values then strip away all but pinA and pinB's values
+    //             B    32
     if (reading == B00001100) {
     encoder_pulsen--;  //decrement the encoder's position count
     } else if (reading == B00000000) {
@@ -99,9 +100,9 @@ void iets() {
     //  sei();  //restart interrupts
 }
 
-void anders() {
-  /*  cli();                 //stop interrupts happening before we read pin values
-    /* reading = PIND & 0xC;  // read all eight pin values then strip away all but pinA and pinB's values
+void encoderB_ISR() {
+ //  cli();                 //stop interrupts happening before we read pin values
+     reading = PIND & 0xC;  // read all eight pin values then strip away all but pinA and pinB's values
     if (reading == B00001100) {
       encoder_pulsen++;  //increment the encoder's position count
     } else if (reading == B00000000) {
@@ -111,8 +112,8 @@ void anders() {
     } else if (reading == B00001000) {
       encoder_pulsen--;
     }
-    sei();  //restart interrupts
-  */
+  //  sei();  //restart interrupts
+  
 }
 
 void loop() {
