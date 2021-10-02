@@ -2,7 +2,7 @@
 #include "can.h"
 #include "mcp2515.h"
 
-MCP2515 mcp2515(10); //compleet willekeurige pin want ER WAS NOG GEEN PIN
+MCP2515 mcp2515(10);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 10, 6, A1);
 
 //const uint8_t pot_pin = A2;
@@ -21,7 +21,7 @@ const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staa
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
 const uint8_t CAN_send_interval = 10;        // de CAN berichten worden 100x per seconden verzonden.
 const uint16_t CAN_ID = 51;                  // CAN ID van setpoint_PWM
-int16_t max_pulsen = 1872;                    // 156 pulsen per rotatie * 12 max rotaties vanaf home = 1872 pulsen in totaal (m4 is 0,7mm per rotatie dus 8,4mm totaal).
+int16_t max_pulsen = 1872;                   // 156 pulsen per rotatie * 12 max rotaties vanaf home = 1872 pulsen in totaal (m4 is 0,7mm per rotatie dus 8,4mm totaal).
 
 volatile int encoder_pulsen = 0;
 volatile int encoder_pulsen_prev = encoder_pulsen;
@@ -89,11 +89,11 @@ void encoderA_ISR() {
 
   if (ENC_A && ENC_B) {
     encoder_pulsen--;  //decrement the encoder's position count
-  } else if (! ENC_A && ! ENC_B) {
+  } else if (!ENC_A && !ENC_B) {
     encoder_pulsen--;
-  } else if (ENC_A && ! ENC_B) {
+  } else if (ENC_A && !ENC_B) {
     encoder_pulsen++;
-  } else if (! ENC_A && ENC_B) {
+  } else if (!ENC_A && ENC_B) {
     encoder_pulsen++;
   }
 }
@@ -104,11 +104,11 @@ void encoderB_ISR() {
 
   if (ENC_A && ENC_B) {
     encoder_pulsen++;  //increment the encoder's position count
-  } else if (! ENC_A && ! ENC_B) {
+  } else if (!ENC_A && !ENC_B) {
     encoder_pulsen++;
-  } else if (ENC_A && ! ENC_B) {
+  } else if (ENC_A && !ENC_B) {
     encoder_pulsen--;
-  } else if (! ENC_A && ENC_B) {
+  } else if (!ENC_A && ENC_B) {
     encoder_pulsen--;
   }
 }
@@ -215,7 +215,7 @@ void loop() {
   if (timer - last_PID >= PID_interval) {
     last_PID = timer;
 
-setpoint_pulsen = constrain(CAN_setpoint_pulsen, 0, max_pulsen); 
+    setpoint_pulsen = constrain(CAN_setpoint_pulsen, 0, max_pulsen);
 
     error = setpoint_pulsen - encoder_pulsen;
     //diff_error = 0.2 * (error - previus_error) + 0.8 * diff_error;
@@ -272,43 +272,49 @@ setpoint_pulsen = constrain(CAN_setpoint_pulsen, 0, max_pulsen);
 
   //============================================== send/read can data ===========================================================================
 
-  //=========================== send setpoint_PWM
-  byte bytes[sizeof(int16_t)]; //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &setpoint_PWM, sizeof(int16_t)); // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  for (uint8_t i = 0; i < sizeof(int16_t); i++) { //basic counter
-    ret.data[i] = bytes[i]; //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = CAN_ID; //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(int16_t); //set the dlc to the size of our data type (int16)
-  //  return ret; //return the frame
-  mcp2515.sendMessage(&ret); //we send the setpoint_PWM as set by the PID to can ID 51
+  //=========================== send_CAN_setpoint_PWM
+  send_CAN_setpoint_PWM();
 
   //========================= send current
-  byte bytes[sizeof(int16_t)]; //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &setpoint_PWM, sizeof(int16_t)); // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  for (uint8_t i = 0; i < sizeof(int16_t); i++) { //basic counter
-    ret.data[i] = bytes[i]; //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = CAN_ID; //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(int16_t); //set the dlc to the size of our data type (int16)
-  //  return ret; //return the frame
-  mcp2515.sendMessage(&ret); //we send the setpoint_PWM as set by the PID to can ID 51
+  send_CAN_current()
 
-  //========================= read CAN
-  read_CAN_data(); //read can data
+    //========================= read CAN
+    read_CAN_data();  //read can data
+}
+
+void home() {
+}
+
+void send_CAN_setpoint_PWM() {
+  byte bytes[sizeof(int16_t)];                     //make an array and reserve the size of the datatype we want to send
+  memcpy(bytes, &setpoint_PWM, sizeof(int16_t));   // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  for (uint8_t i = 0; i < sizeof(int16_t); i++) {  //basic counter
+    ret.data[i] = bytes[i];                        //copy the data from bytes to their respective location in ret.bytes
+  }
+  ret.can_id = CAN_ID;            //set the can id of "ret" to our can id
+  ret.can_dlc = sizeof(int16_t);  //set the dlc to the size of our data type (int16)
+  //  return ret; //return the frame
+  mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
+}
+
+void send_CAN_current() {
+  byte bytes[sizeof(int16_t)];                     //make an array and reserve the size of the datatype we want to send
+  memcpy(bytes, &amps, sizeof(int16_t));           // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  for (uint8_t i = 0; i < sizeof(int16_t); i++) {  //basic counter
+    ret.data[i] = bytes[i];                        //copy the data from bytes to their respective location in ret.bytes
+  }
+  ret.can_id = CAN_ID;            //set the can id of "ret" to our can id
+  ret.can_dlc = sizeof(int16_t);  //set the dlc to the size of our data type (int16)
+  //  return ret; //return the frame
+  mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
 }
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
-    if (canMsg.can_id == 0xC8) { //is can msg ID is 200 in hex
-      CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]); //byte 4-5 is int16_t pulsen achter
+    if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
+      CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
     }
-
   }
-}
-
-void home() {
- 
 }
 /*
   can_frame int_to_frame(int16_t i16, uint16_t can_id) {
@@ -323,8 +329,7 @@ void home() {
   return ret; //return the frame
   }
 */
-int16_t int16_from_can(uint8_t b1, uint8_t b2)
-{
+int16_t int16_from_can(uint8_t b1, uint8_t b2) {
   // maakt van twee bytes een int16_t
   int16_t ret;
   ret = b1 | (int16_t)b2 << 8;
