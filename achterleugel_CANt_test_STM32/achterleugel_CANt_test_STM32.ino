@@ -32,6 +32,8 @@ volatile bool ENC_B;
 
 int16_t smoothing_PWM = 0;  //
 int16_t setpoint_PWM = 0;
+int16_t setpoint_PID_PWM = 0;
+int16_t setpoint_home_PWM = 0;
 int16_t PWM = 0;
 int16_t last_PWM = 0;
 uint32_t last_smoothing;
@@ -123,6 +125,12 @@ void loop() {
     setpoint_pulsen = map(pot_val, 0, 1023, -400, 400);
   */
   //====================== smoothing acceleratie + debug ======================================
+
+  if (homeing) {
+    setpoint_PWM = setpoint_home_PWM;
+  } else {
+    setpoint_PWM = setpoint_PID_PWM;
+  }
 
   int16_t setpoint_PWM_last_PWM = abs(setpoint_PWM) - abs(last_PWM);
 
@@ -231,7 +239,7 @@ void loop() {
 
     PID = P + I + D;
     PID = constrain(PID, -400, 400);
-    setpoint_PWM = PID;
+    setpoint_PID_PWM = PID;
   }
 
   //============================================================SerialPrints============================================
@@ -276,13 +284,35 @@ void loop() {
   send_CAN_setpoint_PWM();
 
   //========================= send current
-  send_CAN_current()
+  send_CAN_current();
 
-    //========================= read CAN
-    read_CAN_data();  //read can data
+  //========================= read CAN
+  read_CAN_data();  //read can data
 }
 
 void home() {
+  const static uint8_t min_home_time = 100;
+  static uint32_t last_home_time = timer;
+
+#ifdef HOME_DEBUG
+  Serial.println("homing");
+#endif
+  if (setpoint_home_PWM == 0) {                          // als het homen nog niet begonnen is
+    setpoint_home_PWM = 400;                             // begin met homen
+    last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
+  } else if (timer - last_home_time >= min_home_time) {  // wacht 100ms zodat amps niet meer 0 is door het filter.
+    if (amps < 100) {                                    // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
+      encoder_pulsen = 0;                                // reset de pulsen
+      setpoint_pulsen = 0;                               // reset het setpoint
+      setpoint_home_PWM = 0; // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
+      CAN_setpoint_pulsen; // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht
+      I = 0; // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien
+      homeing = false; // homen is klaar
+#ifdef HOME_DEBUG
+      Serial.println("homed");
+#endif
+    }
+  }
 }
 
 void send_CAN_setpoint_PWM() {
