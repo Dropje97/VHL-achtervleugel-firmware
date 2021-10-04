@@ -122,7 +122,6 @@ void loop() {
   Serial.println("Loop3");
 //  delay(1000);
   timer = millis();
-
   //======================= lees potmeter ==================================
   /*
     pot_val = 0.05 * analogRead(pot_pin) + 0.95 * pot_val;
@@ -255,6 +254,7 @@ void loop() {
 
     P = constrain(P, -400, 400); 
     //D = constrain(D, -400, 400);
+      Serial.println("Ik leef nog...");
     /*
     Serial.print(PID);
     Serial.print(" - ");
@@ -288,12 +288,14 @@ void loop() {
   //============================================== send/read can data ===========================================================================
 
   //=========================== send_CAN_setpoint_PWM
-  send_CAN_setpoint_PWM();
+ //send_CAN_setpoint_PWM();
 
   //========================= send current
-  send_CAN_current();
+//  send_CAN_current();
 
   //========================= read CAN
+
+
   read_CAN_data();  //read can data
  
 }
@@ -350,15 +352,18 @@ void send_CAN_current() {
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
-    Serial.println(canMsg.can_id);
+    Serial.print(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
-      Serial.println(CAN_setpoint_pulsen);
+       Serial.print(" - ");
+      Serial.print(CAN_setpoint_pulsen);
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
+       Serial.print(" - ");
       Serial.println(homeing);
     }
+    Serial.print("\n");
   }
 }
 /*
