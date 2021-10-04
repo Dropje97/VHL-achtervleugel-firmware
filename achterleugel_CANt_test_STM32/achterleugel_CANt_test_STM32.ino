@@ -87,6 +87,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(pinA), encoderA_ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinB), encoderB_ISR, CHANGE);
 }
+
 void encoderA_ISR() {
   ENC_A = digitalRead(pinA);
   ENC_B = digitalRead(pinB);
@@ -118,6 +119,8 @@ void encoderB_ISR() {
 }
 
 void loop() {
+  Serial.println("Loop3");
+//  delay(1000);
   timer = millis();
 
   //======================= lees potmeter ==================================
@@ -126,6 +129,7 @@ void loop() {
     // setpoint_PWM = map(pot_val, 0, 1023, -400, 400);
     setpoint_pulsen = map(pot_val, 0, 1023, -400, 400);
   */
+
   //====================== smoothing acceleratie + debug ======================================
 
   if (homeing) {
@@ -249,7 +253,7 @@ void loop() {
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
 
-    P = constrain(P, -400, 400);
+    P = constrain(P, -400, 400); 
     //D = constrain(D, -400, 400);
     /*
     Serial.print(PID);
@@ -278,6 +282,7 @@ void loop() {
       Serial.print(" - ");
       Serial.println(overcurrent_limit);
     */
+    
   }
 
   //============================================== send/read can data ===========================================================================
@@ -290,6 +295,7 @@ void loop() {
 
   //========================= read CAN
   read_CAN_data();  //read can data
+ 
 }
 
 void home() {
@@ -368,6 +374,7 @@ void read_CAN_data() {
   return ret; //return the frame
   }
 */
+
 int16_t int16_from_can(uint8_t b1, uint8_t b2) {
   // maakt van twee bytes een int16_t
   int16_t ret;
