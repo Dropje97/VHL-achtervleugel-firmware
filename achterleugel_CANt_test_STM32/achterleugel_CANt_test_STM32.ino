@@ -2,12 +2,12 @@
 #include "can.h"
 #include "mcp2515.h"
 
-MCP2515 mcp2515(10);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
+MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 10, 6, A1);
 
 //const uint8_t pot_pin = A2;
-const uint8_t pinA = 2;  // Rotary encoder Pin A
-const uint8_t pinB = 3;  // Rotary encoder Pin B
+const uint8_t pinA = PB1;  // Rotary encoder Pin A
+const uint8_t pinB = PB2;  // Rotary encoder Pin B
 
 const int8_t kp = -50;
 const int8_t ki = -1;
