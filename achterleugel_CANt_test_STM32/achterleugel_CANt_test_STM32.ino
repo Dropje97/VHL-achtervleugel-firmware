@@ -181,9 +181,9 @@ void loop() {
 
   //===================== overcurrent detectie =============================
 
-  if (timer - last_amps_poll > amps_poll_interval) {
+  if (timer - last_amps_poll >= amps_poll_interval) {
     last_amps_poll = timer;
-    amps = amps * 0.95 + md.getM2CurrentMilliamps() * 0.05;
+    amps = amps * 0.96 + md.getM2CurrentMilliamps() * 0.04;
 
     overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 1000;
     if (amps > overcurrent_limit) {
@@ -288,6 +288,8 @@ void loop() {
 
   //========================= read CAN
   read_CAN_data();  //read can data
+
+  
 }
 
 void home() {
@@ -307,6 +309,7 @@ void home() {
       setpoint_home_PWM = 0; // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
       CAN_setpoint_pulsen; // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht
       I = 0; // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien
+      setpoint_PID_PWM = 0; // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien
       homeing = false; // homen is klaar
 #ifdef HOME_DEBUG
       Serial.println("homed");
@@ -328,13 +331,13 @@ void send_CAN_setpoint_PWM() {
 }
 
 void send_CAN_current() {
-  byte bytes[sizeof(int16_t)];                     //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &amps, sizeof(int16_t));           // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  for (uint8_t i = 0; i < sizeof(int16_t); i++) {  //basic counter
+  byte bytes[sizeof(uint16_t)];                     //make an array and reserve the size of the datatype we want to send
+  memcpy(bytes, &amps, sizeof(uint16_t));           // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  for (uint8_t i = 0; i < sizeof(uint16_t); i++) {  //basic counter
     ret.data[i] = bytes[i];                        //copy the data from bytes to their respective location in ret.bytes
   }
   ret.can_id = CAN_ID;            //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(int16_t);  //set the dlc to the size of our data type (int16)
+  ret.can_dlc = sizeof(uint16_t);  //set the dlc to the size of our data type (int16)
   //  return ret; //return the frame
   mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
 }
@@ -344,6 +347,9 @@ void read_CAN_data() {
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
     }
+    if (canMsg.can_id == 0xC7) { // TODO CAN ID
+      homeing = canMsg.data[2]; // byte 2 is bool homen achter
+    } 
   }
 }
 /*
