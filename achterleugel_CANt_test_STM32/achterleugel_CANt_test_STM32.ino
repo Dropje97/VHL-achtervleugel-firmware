@@ -2,7 +2,7 @@
 #include "can.h"
 #include "mcp2515.h"
 
-#define HOME_DEBUG
+//#define HOME_DEBUG
 
 MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 10, 6, A1);
@@ -55,7 +55,7 @@ int32_t error = 0;
 int32_t previus_error = 0;
 int32_t diff_error = 0;
 int32_t P = 0;
-float I = 0;
+int32_t I = 0;
 float D = 0;
 int32_t PID = 0;
 
@@ -238,9 +238,6 @@ void loop() {
 
     P = kp * error;
     if (((abs(P) < 400) || (abs(PID) < 400)) && (direction_change == false)) {  // update de I alleen wanneer de motor nog niet op vol vermogen draait en niet op de rem staat omdat ie van richting verandert.
-      Serial.print(abs(P));
-      Serial.print(" -I- ");
-      Serial.println(abs(PID));
       I = ki * error + I;
     }
     //D = kd * diff_error;
@@ -253,10 +250,10 @@ void loop() {
   }
 
   //============================================================SerialPrints============================================
-
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
-
+    Serial.println(amps);
+/*
     P = constrain(P, -400, 400);
     //D = constrain(D, -400, 400);
     Serial.print(encoder_pulsen);
@@ -268,7 +265,7 @@ void loop() {
     Serial.print(I, 0);
     Serial.print(" - ");
     Serial.println(D, 0);
-
+*/
     /*
       //Serial.print(last_PWM);
       //Serial.print(" - ");
@@ -312,7 +309,7 @@ void home() {
 #ifdef HOME_DEBUG
     Serial.println("homing");
 #endif
-    setpoint_home_PWM = -400;                             // begin met homen
+    setpoint_home_PWM = -400;                            // begin met homen
     last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
   } else if (timer - last_home_time >= min_home_time) {  // wacht 1000ms zodat amps niet meer 0 is door het filter.
     if (amps < 100) {                                    // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
@@ -320,13 +317,15 @@ void home() {
       Serial.println(amps);
 #endif
       delay(500);                                        // wacht 500ms zodat de motor stil staat.
-      encoder_pulsen = 0;                                // reset de pulsen
-      setpoint_pulsen = 0;                               // reset het setpoint
+      encoder_pulsen = 0;                                // reset de pulsen.
+      setpoint_pulsen = 0;                               // reset het setpoint.
       setpoint_home_PWM = 0;                             // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
- //     CAN_setpoint_pulsen = 0;                           // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht
-      I = 0;                                             // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien
-      setpoint_PID_PWM = 0;                              // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien
-      homeing = false;                                   // homen is klaar
+      CAN_setpoint_pulsen = 0;                           // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
+      I = 0;                                             // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
+      setpoint_PID_PWM = 0;                              // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
+      amps = 0;                                          // zet het stroomsterkte filter weer op 0.
+      overcurrent = false;                               // overcurrent is false na het homen zodat de motor weer kan draaien.
+      homeing = false;                                   // homen is klaar.
 #ifdef HOME_DEBUG
       Serial.println("homed");
 #endif
