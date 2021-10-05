@@ -2,6 +2,8 @@
 #include "can.h"
 #include "mcp2515.h"
 
+#define HOME_DEBUG
+
 MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 10, 6, A1);
 
@@ -9,9 +11,9 @@ DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 10, 6, A1);
 const uint8_t pinA = PB1;  // Rotary encoder Pin A
 const uint8_t pinB = PB2;  // Rotary encoder Pin B
 
-const int8_t kp = -50;
-const int8_t ki = -1;
-const int8_t kd = -0;
+const int8_t kp = 50;
+const int8_t ki = 3;
+const int8_t kd = 0;
 
 const int16_t start_PWM = 80;                // de motor begint direct te draaien op de startwaarde of langzamer als er minder gas nodig is, daana neemt de smoothing het over.
 const uint8_t smoothing_time = 20;           // tijd in millis tussen het verhogen van het PWM van de motor zodat deze rustig versneld. hogere waarde is langzamer versnellen.
@@ -20,10 +22,10 @@ const uint8_t serial_print_interval = 50;    // tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
 const uint8_t CAN_send_interval = 10;        // de CAN berichten worden 100x per seconden verzonden.
-const uint16_t CAN_ID = 51;                  // CAN ID van setpoint_PWMconst uint16_t
+const uint16_t CAN_ID = 51;                  // CAN ID van setpoint_PWM
 const uint16_t CAN_ID_amps_achter = 250;
 const uint16_t CAN_ID_home_achter = 300;
-int16_t max_pulsen = 1872;  // 156 pulsen per rotatie * 12 max rotaties vanaf home = 1872 pulsen in totaal (m4 is 0,7mm per rotatie dus 8,4mm totaal).
+const int16_t max_pulsen = 1872;  // 156 pulsen per rotatie * 12 max rotaties vanaf home = 1872 pulsen in totaal (m4 is 0,7mm per rotatie dus 8,4mm totaal).
 
 volatile int encoder_pulsen = 0;
 volatile int encoder_pulsen_prev = encoder_pulsen;
@@ -61,14 +63,14 @@ int16_t i16;
 
 bool overcurrent = false;
 bool direction_change = false;
-bool direction = 0;  // 0= negatief 1=positief
+bool direction = 1;  // 0= negatief 1=positief
 bool previus_direction = direction;
-bool homeing = false;
+bool homeing = true;
 uint8_t CAN_error = 0;  //1= motor disconnect
 
 struct can_frame ret;
 struct can_frame canMsg;
-int16_t CAN_setpoint_pulsen;
+int16_t CAN_setpoint_pulsen = 156;
 
 void setup() {
   Serial.begin(2000000);
@@ -88,7 +90,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(pinB), encoderB_ISR, CHANGE);
 }
 
-void encoderA_ISR() {
+void encoderB_ISR() {
   ENC_A = digitalRead(pinA);
   ENC_B = digitalRead(pinB);
 
@@ -103,7 +105,7 @@ void encoderA_ISR() {
   }
 }
 
-void encoderB_ISR() {
+void encoderA_ISR() {
   ENC_A = digitalRead(pinA);
   ENC_B = digitalRead(pinB);
 
@@ -119,8 +121,6 @@ void encoderB_ISR() {
 }
 
 void loop() {
-  Serial.println("Loop3");
-//  delay(1000);
   timer = millis();
   //======================= lees potmeter ==================================
   /*
@@ -132,6 +132,7 @@ void loop() {
   //====================== smoothing acceleratie + debug ======================================
 
   if (homeing) {
+    home();
     setpoint_PWM = setpoint_home_PWM;
   } else {
     setpoint_PWM = setpoint_PID_PWM;
@@ -221,6 +222,7 @@ void loop() {
     overcurrent = false;
   } else if (overcurrent == false) {
     md.setM2Speed(PWM);
+    // Serial.println(PWM);
   }
 
   //==================================== PID compute ===============================
@@ -235,7 +237,10 @@ void loop() {
     //previus_error = error;
 
     P = kp * error;
-    if (((abs(P) < 400) && (abs(PID) < 400)) || (direction_change == false)) {  // update de I alleen wanneer de motor nog niet op vol vermogen draait en niet op de rem staat omdat ie van richting verandert.
+    if (((abs(P) < 400) || (abs(PID) < 400)) && (direction_change == false)) {  // update de I alleen wanneer de motor nog niet op vol vermogen draait en niet op de rem staat omdat ie van richting verandert.
+      Serial.print(abs(P));
+      Serial.print(" -I- ");
+      Serial.println(abs(PID));
       I = ki * error + I;
     }
     //D = kd * diff_error;
@@ -252,18 +257,18 @@ void loop() {
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
 
-    P = constrain(P, -400, 400); 
+    P = constrain(P, -400, 400);
     //D = constrain(D, -400, 400);
-      Serial.println("Ik leef nog...");
-    /*
+    Serial.print(encoder_pulsen);
+    Serial.print(" - ");
     Serial.print(PID);
     Serial.print(" - ");
     Serial.print(P);
     Serial.print(" - ");
-    Serial.print(I);
+    Serial.print(I, 0);
     Serial.print(" - ");
-    Serial.println(D);
-*/
+    Serial.println(D, 0);
+
     /*
       //Serial.print(last_PWM);
       //Serial.print(" - ");
@@ -282,40 +287,43 @@ void loop() {
       Serial.print(" - ");
       Serial.println(overcurrent_limit);
     */
-    
+
   }
 
   //============================================== send/read can data ===========================================================================
 
   //=========================== send_CAN_setpoint_PWM
- //send_CAN_setpoint_PWM();
+  //send_CAN_setpoint_PWM();
 
   //========================= send current
-//  send_CAN_current();
+  //  send_CAN_current();
 
   //========================= read CAN
 
 
   read_CAN_data();  //read can data
- 
 }
 
 void home() {
-  const static uint8_t min_home_time = 100;
+  const static uint8_t min_home_time = 1000;
   static uint32_t last_home_time = timer;
 
-#ifdef HOME_DEBUG
-  Serial.println("homing");
-#endif
   if (setpoint_home_PWM == 0) {                          // als het homen nog niet begonnen is
-    setpoint_home_PWM = 400;                             // begin met homen
+#ifdef HOME_DEBUG
+    Serial.println("homing");
+#endif
+    setpoint_home_PWM = -400;                             // begin met homen
     last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
-  } else if (timer - last_home_time >= min_home_time) {  // wacht 100ms zodat amps niet meer 0 is door het filter.
+  } else if (timer - last_home_time >= min_home_time) {  // wacht 1000ms zodat amps niet meer 0 is door het filter.
     if (amps < 100) {                                    // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
+#ifdef HOME_DEBUG
+      Serial.println(amps);
+#endif
+      delay(500);                                        // wacht 500ms zodat de motor stil staat.
       encoder_pulsen = 0;                                // reset de pulsen
       setpoint_pulsen = 0;                               // reset het setpoint
       setpoint_home_PWM = 0;                             // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-      CAN_setpoint_pulsen = 0;                           // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht
+ //     CAN_setpoint_pulsen = 0;                           // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht
       I = 0;                                             // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien
       setpoint_PID_PWM = 0;                              // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien
       homeing = false;                                   // homen is klaar
@@ -355,12 +363,12 @@ void read_CAN_data() {
     Serial.print(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
-       Serial.print(" - ");
+      Serial.print(" - ");
       Serial.print(CAN_setpoint_pulsen);
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
-       Serial.print(" - ");
+      Serial.print(" - ");
       Serial.println(homeing);
     }
     Serial.print("\n");
