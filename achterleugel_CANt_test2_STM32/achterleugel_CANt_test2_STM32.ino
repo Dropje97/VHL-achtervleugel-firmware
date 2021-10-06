@@ -125,7 +125,6 @@ void encoderA_ISR() {
 }
 
 void loop() {
-   md.setM2Speed(200);
   timer = millis();
   //======================= lees potmeter ==================================
   /*
@@ -227,7 +226,7 @@ void loop() {
     overcurrent = false;
   } else if (overcurrent == false) {
     setspeed();
-    Serial.println("setspeed");
+  //  Serial.println("setspeed");
   }
 
   //==================================== PID compute ===============================
@@ -307,12 +306,12 @@ void loop() {
   //========================= read CAN
 
 
-  read_CAN_data();  //read can data
+ // read_CAN_data();  //read can data
 }
 void setspeed() {
- // md.setM2Speed(PWM);
-  md.setM2Speed(200);
-  Serial.println("void setspeed");
+  md.setM2Speed(PWM);
+ // md.setM2Speed(200);
+ // Serial.println("void setspeed");
 }
 
 void home() {
