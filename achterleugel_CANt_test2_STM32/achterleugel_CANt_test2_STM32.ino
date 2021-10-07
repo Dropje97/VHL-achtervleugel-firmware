@@ -2,10 +2,6 @@
 #include "can.h"
 #include "mcp2515.h"
 
-int led = LED_BUILTIN;           // the PWM pin the LED is attached to
-int brightness = 0;    // how bright the LED is
-int fadeAmount = 5;    // how many points to fade the LED by
-
 #define HOME_DEBUG
 
 MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
@@ -27,7 +23,7 @@ const uint8_t serial_print_interval = 50;    // tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
 const uint8_t CAN_send_interval = 10;        // de CAN berichten worden 100x per seconden verzonden.
-const uint16_t CAN_read_interval = 1000;     // de CAN berichten worden 1000x per seconden ontvangen.
+const uint16_t CAN_read_interval = 50;     // de CAN berichten worden 1000x per seconden ontvangen.
 
 const uint16_t CAN_ID = 51;               // CAN ID van setpoint_PWM
 const uint16_t CAN_ID_amps_achter = 250;  // CAN ID van CAN_ID_amps_achter
@@ -81,8 +77,6 @@ struct can_frame canMsg;
 int16_t CAN_setpoint_pulsen = 156;
 
 void setup() {
-  pinMode(led, OUTPUT);
-
   Serial.begin(115200);
   Serial.println("Dual VNH5019 Motor Shield");
   md.init();
@@ -90,7 +84,8 @@ void setup() {
   mcp2515.reset();
   mcp2515.setBitrate(CAN_125KBPS);
   mcp2515.setNormalMode();
-
+ mcp2515.reset();
+ 
   //  pinMode(pot_pin, INPUT);
   pinMode(pinA, INPUT_PULLUP);  // Set Pin_A as input
   pinMode(pinB, INPUT_PULLUP);  // Set Pin_B as input
@@ -102,6 +97,7 @@ void setup() {
   delay(1000);
   md.setM2Speed(-200);
   delay(1000);
+  
 }
 
 void encoderB_ISR() {
@@ -205,7 +201,7 @@ void loop() {
     last_amps_poll = timer;
     amps = amps * 0.96 + md.getM2CurrentMilliamps() * 0.04;
 
-    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 1000;
+    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 2000; // was +1000
     if (amps > overcurrent_limit) {
       overcurrent = true;
       md.setM2Brake(400);
@@ -267,17 +263,6 @@ void loop() {
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
 
-    // set the brightness of pin 9:
-    analogWrite(led, brightness);
-
-    // change the brightness for next time through the loop:
-    brightness = brightness + fadeAmount;
-
-    // reverse the direction of the fading at the ends of the fade:
-    if (brightness <= 0 || brightness >= 255) {
-      fadeAmount = -fadeAmount;
-    }
-
     Serial.print(overcurrent_limit);
     Serial.print(" - ");
     Serial.print(amps);
@@ -329,9 +314,9 @@ void loop() {
   //========================= read CAN
   if (timer - last_CAN_read >= CAN_read_interval) {
     last_CAN_read = timer;
-    read_CAN_data();
+   read_CAN_data();
     Serial.println("Read CAN");
-    delay(200);
+   // delay(10);
   }
 }
 void setspeed() {
