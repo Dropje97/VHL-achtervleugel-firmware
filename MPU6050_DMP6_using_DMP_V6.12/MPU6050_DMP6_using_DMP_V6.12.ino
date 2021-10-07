@@ -202,7 +202,7 @@ void loop() {
 
     //static uint8_t counter;
 
-    if (millis() - last_send >= 19) {
+    if (millis() - last_send >= 50) {
       last_send = millis();
       mcp2515.sendMessage(&float_to_frame_twice(pitch,  roll, 100));
     }
