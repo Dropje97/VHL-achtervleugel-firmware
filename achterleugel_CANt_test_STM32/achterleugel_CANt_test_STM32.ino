@@ -361,16 +361,16 @@ void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
     Serial.print(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
+      Serial.print("CAN frame setpulsen: ");
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
-      Serial.print(" - ");
-      Serial.print(CAN_setpoint_pulsen);
+      Serial.println(CAN_setpoint_pulsen);
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
-      Serial.print(" - ");
+      Serial.print("CAN frame homing: ");
       Serial.println(homeing);
     }
-    Serial.print("\n");
+  
   }
 }
 /*

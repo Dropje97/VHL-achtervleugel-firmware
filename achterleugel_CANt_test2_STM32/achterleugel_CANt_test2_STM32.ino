@@ -84,8 +84,7 @@ void setup() {
   mcp2515.reset();
   mcp2515.setBitrate(CAN_125KBPS);
   mcp2515.setNormalMode();
- mcp2515.reset();
- 
+
   //  pinMode(pot_pin, INPUT);
   pinMode(pinA, INPUT_PULLUP);  // Set Pin_A as input
   pinMode(pinB, INPUT_PULLUP);  // Set Pin_B as input
@@ -97,7 +96,7 @@ void setup() {
   delay(1000);
   md.setM2Speed(-200);
   delay(1000);
-  
+
 }
 
 void encoderB_ISR() {
@@ -263,6 +262,8 @@ void loop() {
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
 
+    Serial.println(encoder_pulsen);
+    /*
     Serial.print(overcurrent_limit);
     Serial.print(" - ");
     Serial.print(amps);
@@ -270,6 +271,7 @@ void loop() {
     Serial.print(CAN_setpoint_pulsen);
     Serial.print(" - ");
     Serial.println(PWM);
+    */
     /*
       P = constrain(P, -400, 400);
       //D = constrain(D, -400, 400);
@@ -314,9 +316,10 @@ void loop() {
   //========================= read CAN
   if (timer - last_CAN_read >= CAN_read_interval) {
     last_CAN_read = timer;
-   read_CAN_data();
-    Serial.println("Read CAN");
-   // delay(10);
+    
+    read_CAN_data();
+    read_CAN_data();
+    read_CAN_data();
   }
 }
 void setspeed() {
@@ -345,7 +348,7 @@ void home() {
       encoder_pulsen = 0;       // reset de pulsen.
       setpoint_pulsen = 0;      // reset het setpoint.
       setpoint_home_PWM = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-      // CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
+      CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
       I = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
       setpoint_PID_PWM = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
       amps = 0;                 // zet het stroomsterkte filter weer op 0.
@@ -384,19 +387,19 @@ void send_CAN_current() {
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
-    // Serial.print(canMsg.can_id);
+    Serial.print("CAN frame id: ");
+    Serial.println(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
+      Serial.print("CAN frame setpulsen: ");
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
-      //    Serial.print(" - ");
-      //   Serial.print(CAN_setpoint_pulsen);
+      Serial.println(CAN_setpoint_pulsen);
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
-      Serial.print("CAN home");
-      Serial.print(" - ");
+      Serial.print("CAN frame homing: ");
       Serial.println(homeing);
     }
-    // Serial.print("\n");
+
   }
 }
 /*
