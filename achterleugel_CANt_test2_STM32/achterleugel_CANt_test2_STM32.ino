@@ -69,12 +69,13 @@ bool overcurrent = false;
 bool direction_change = false;
 bool direction = 1;  // 0= negatief 1=positief
 bool previus_direction = direction;
-bool homeing = true;
+bool homeing = false;
 uint8_t CAN_error = 0;  //1= motor disconnect
+bool has_homed = false;
 
 struct can_frame ret;
 struct can_frame canMsg;
-int16_t CAN_setpoint_pulsen = 156;
+int16_t CAN_setpoint_pulsen = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -143,7 +144,7 @@ void loop() {
   if (homeing) {
     home();
     setpoint_PWM = setpoint_home_PWM;
-  } else {
+  } else if (has_homed){
     setpoint_PWM = setpoint_PID_PWM;
   }
 
@@ -354,6 +355,7 @@ void home() {
       amps = 0;                 // zet het stroomsterkte filter weer op 0.
       overcurrent = false;      // overcurrent is false na het homen zodat de motor weer kan draaien.
       homeing = false;          // homen is klaar.
+      has_homed = true;
 #ifdef HOME_DEBUG
       Serial.println("homed");
 #endif
