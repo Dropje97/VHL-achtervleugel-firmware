@@ -345,7 +345,7 @@ void home() {
       Serial.println(amps);
 #endif
       delay(500);               // wacht 500ms zodat de motor stil staat.
-      encoder_pulsen = 0;       // reset de pulsen.
+      encoder_pulsen = -156;       // reset de pulsen.
       setpoint_pulsen = 0;      // reset het setpoint.
       setpoint_home_PWM = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
       CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
@@ -357,8 +357,10 @@ void home() {
 #ifdef HOME_DEBUG
       Serial.println("homed");
 #endif
+   delay(4000); 
     }
   }
+  
 }
 
 void send_CAN_setpoint_PWM() {
