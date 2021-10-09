@@ -92,11 +92,11 @@ void setup() {
   // Atach a CHANGE interrupt to PinB and exectute the update function when this change occurs.
   attachInterrupt(digitalPinToInterrupt(pinA), encoderA_ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinB), encoderB_ISR, CHANGE);
-  md.setM2Speed(200);
+/*  md.setM2Speed(200);
   delay(1000);
   md.setM2Speed(-200);
   delay(1000);
-
+*/
 }
 
 void encoderB_ISR() {
