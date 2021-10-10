@@ -131,12 +131,14 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(pinB_links), encoderB_links_ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinA_rechts), encoderA_rechts_ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinB_rechts), encoderB_rechts_ISR, CHANGE);
-  // md.setSpeeds(400, 400);
-  md.setM1Speed(400);
-  md.setM2Speed(400);
-  delay(5000);
-  md.setSpeeds(0, 0);
-  delay(1000);
+  /*
+    // md.setSpeeds(400, 400);
+    md.setM1Speed(400);
+    md.setM2Speed(400);
+    delay(5000);
+    md.setSpeeds(0, 0);
+    delay(1000);
+  */
 }
 
 void encoderB_links_ISR() {
@@ -530,44 +532,44 @@ void home() {
       Serial.println(amps_rechts);
 #endif
       delay(500);               // wacht 500ms zodat de motor stil staat.
-      if ((setpoint_home_PWM_links == -400) && (setpoint_home_PWM_rechts == -400)) {
-#ifdef HOME_DEBUG
-        Serial.println F(("snel homen klaar"));
-#endif
-        md.setSpeeds(0, 0);
-        delay(500);
-        md.setSpeeds(400, 400);
-        delay(1000);
-        md.setSpeeds(0, 0);
-        delay(200);
-        //  amps_links = 0;
-        //  amps_rechts = 0;
-        setpoint_home_PWM_links = -200;                            // begin met homen
-        setpoint_home_PWM_rechts = -200;                           // begin met homen
-        last_home_time = timer;
-      } else {
-        encoder_pulsen_links = -10;       // reset de pulsen.
-        setpoint_pulsen_links = 0;      // reset het setpoint.
-        setpoint_home_PWM_links = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-        I_links = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
-        setpoint_PID_PWM_links = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
-        amps_links = 0;                 // zet het stroomsterkte filter weer op 0.
+      /*  if ((setpoint_home_PWM_links == -400) && (setpoint_home_PWM_rechts == -400)) {
+        #ifdef HOME_DEBUG
+          Serial.println F(("snel homen klaar"));
+        #endif
+          md.setSpeeds(0, 0);
+          delay(500);
+          md.setSpeeds(400, 400);
+          delay(1000);
+          md.setSpeeds(0, 0);
+          delay(200);
+          //  amps_links = 0;
+          //  amps_rechts = 0;
+          setpoint_home_PWM_links = -200;                            // begin met homen
+          setpoint_home_PWM_rechts = -200;                           // begin met homen
+          last_home_time = timer;
+        } else { */
+      encoder_pulsen_links = -50;       // reset de pulsen.
+      setpoint_pulsen_links = 0;      // reset het setpoint.
+      setpoint_home_PWM_links = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
+      I_links = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
+      setpoint_PID_PWM_links = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
+      amps_links = 0;                 // zet het stroomsterkte filter weer op 0.
 
-        encoder_pulsen_rechts = -10;       // reset de pulsen.
-        setpoint_pulsen_rechts = 0;      // reset het setpoint.
-        setpoint_home_PWM_rechts = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-        I_rechts = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
-        setpoint_PID_PWM_rechts = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
+      encoder_pulsen_rechts = -10;       // reset de pulsen.
+      setpoint_pulsen_rechts = 0;      // reset het setpoint.
+      setpoint_home_PWM_rechts = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
+      I_rechts = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
+      setpoint_PID_PWM_rechts = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
 
-        amps_rechts = 0;                 // zet het stroomsterkte filter weer op 0.
-        CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
-        overcurrent = false;      // overcurrent is false na het homen zodat de motor weer kan draaien.
-        homeing = false;          // homen is klaar.
-        has_homed = true;
+      amps_rechts = 0;                 // zet het stroomsterkte filter weer op 0.
+      CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
+      overcurrent = false;      // overcurrent is false na het homen zodat de motor weer kan draaien.
+      homeing = false;          // homen is klaar.
+      has_homed = true;
 #ifdef HOME_DEBUG
-        Serial.println("homed");
+      Serial.println("homed");
 #endif
-      }
+
     }
   }
 }
