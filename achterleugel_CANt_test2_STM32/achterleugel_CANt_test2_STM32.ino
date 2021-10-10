@@ -96,7 +96,6 @@ void setup() {
   delay(1000);
   md.setM2Speed(-200);
   delay(1000);
-
 }
 
 void encoderB_ISR() {
@@ -348,7 +347,7 @@ void home() {
       encoder_pulsen = 0;       // reset de pulsen.
       setpoint_pulsen = 0;      // reset het setpoint.
       setpoint_home_PWM = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-      CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
+    //  CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
       I = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
       setpoint_PID_PWM = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
       amps = 0;                 // zet het stroomsterkte filter weer op 0.

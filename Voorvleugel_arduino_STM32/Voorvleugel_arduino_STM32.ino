@@ -4,25 +4,23 @@
     Created on: Jun 16, 2021
         Author: john
 */
-#include "mcp2515.h"
-//#include "DualVNH5019MotorShield.h"
-MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
-//DualVNH5019MotorShield motor_shield();
+//#include "mcp2515.h"
+//MCP2515 mcp2515(PB12);
 
 #include "types.h"
 #include "motor_config.h"
-#include "mcp2515.h"
 #include "can.h"
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 
-//#define HOME_DEBUG
+#define HOME_DEBUG
+#define PRINT_PULSE
 
 #define ENC1_PIN_1 PB2
 #define ENC1_PIN_2 PB1
-#define ENC2_PIN_1 PB15
-#define ENC2_PIN_2 PB14
+#define ENC2_PIN_1 PB4
+#define ENC2_PIN_2 PB3
 
 int delay_time = 50;
 
@@ -79,7 +77,6 @@ void encoder2_ISR() {
   }
 }
 
-
 void compute_pid(Motor m) {
   float error =  (float)(m.setpoint + m.offset - m.encoder_pulses - m.offset_fixed);
   if (error > error_max * -1 && error < error_max) {
@@ -116,7 +113,7 @@ void compute_pid(Motor m) {
   }
   m.set_speed(m.pwm);
   m.millis_last = HAL_GetTick();
-  printf("%d \n", m.setpoint);
+  printf("test %d \n", m.setpoint);
 }
 
 int sample_motor_current(Motor m) {
@@ -140,8 +137,8 @@ void home_actuators() {
 #ifdef HOME_DEBUG
   printf("homing\n");
 #endif
-  motor_1.set_speed(motor_1.home_pwm_high);
-  motor_2.set_speed(motor_2.home_pwm_high);
+  motor_1.set_speed(-motor_1.home_pwm_high);
+  motor_2.set_speed(-motor_2.home_pwm_high);
   int motor_current_1 = 0;
   int motor_current_2 = 0;
   HAL_Delay(100);
@@ -152,20 +149,20 @@ void home_actuators() {
          motor_current_2 > motor_2_stop_current) {
 #ifdef HOME_DEBUG
     //printf("%d %d", encoder1_pulses, encoder2_pulses);
-    printf("cur %d %d \n", motor_current_2, motor_current_2);
+    printf("cur %d %d \n", motor_current_1, motor_current_2);
 #endif
     HAL_Delay(100);
     motor_current_1 = sample_motor_current(motor_1);
-    motor_current_1 = sample_motor_current(motor_2);
+    motor_current_2 = sample_motor_current(motor_2);
   }
 #ifdef HOME_DEBUG
   printf("stage 1 done\n");
 #endif
-  motor_1.set_speed( -1 * motor_1.home_pwm_high);
-  motor_2.set_speed( -1 * motor_2.home_pwm_high);
+  motor_1.set_speed( 1 * motor_1.home_pwm_high);
+  motor_2.set_speed( 1 * motor_2.home_pwm_high);
   HAL_Delay(1000);
-  motor_1.set_speed(motor_1.home_pwm_high);
-  motor_2.set_speed(motor_2.home_pwm_high);
+  motor_1.set_speed(-motor_1.home_pwm_high);
+  motor_2.set_speed(-motor_2.home_pwm_high);
   HAL_Delay(20);
   motor_current_1 = sample_motor_current(motor_1);
   motor_current_2 = sample_motor_current(motor_2);
@@ -181,8 +178,8 @@ void home_actuators() {
   }
   motor_1.encoder_pulses = 0;
   motor_2.encoder_pulses = 0;
-  motor_1.setpoint = 0;
-  motor_2.setpoint = 0;
+  motor_1.setpoint = 100;
+  motor_2.setpoint = 100;
   motor_1.set_speed(0);
   motor_2.set_speed(0);
 
@@ -193,7 +190,7 @@ void home_actuators() {
 
 }
 /*
-void user_init() {
+  void user_init() {
   canMsg1.can_id  = 0x0F6;
   canMsg1.can_dlc = 8;
   canMsg1.data[0] = 0xEE;
@@ -216,12 +213,12 @@ void user_init() {
   canMsg2.data[6] = 0xAA;
   canMsg2.data[7] = 0xAA;
 
- // motor_shield = DualVNH5019MotorShield();
+  // motor_shield = DualVNH5019MotorShield();
 
-}
+  }
 */
 /*
-void parse_uart_cmds() {
+  void parse_uart_cmds() {
   /* TODOS
      read uart into buffer char by char.
      extract possible commands with strtok
@@ -261,29 +258,29 @@ void parse_uart_cmds() {
     printf("no cmd found");
     ret();
   }
-}
+  }
 */
 /*
-void user_while() {
+  void user_while() {
   //	HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
   //	printf("%d\n", MCP_sendMessage(&canMsg1));
   //	printf("%d\n", MCP_sendMessage(&canMsg2));
 
   //printf("start\n");
 
-  
+
   	parse_uart_cmds();
   	parse_uart_cmds();
   	parse_uart_cmds();
   	parse_uart_cmds();
   	parse_uart_cmds();
-  
+
 
   //	printf("done\n");
 
   //home_actuators();
   HAL_Delay(5000);
-}
+  }
 */
 
 void setup() {
@@ -292,18 +289,27 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENC1_PIN_1), encoder1_ISR, FALLING);
   attachInterrupt(digitalPinToInterrupt(ENC2_PIN_1), encoder2_ISR, FALLING);
   motor_shield.init();
-  
-  mcp2515.reset();
-  mcp2515.setBitrate(CAN_125KBPS);
-  mcp2515.setNormalMode();
-  delay(10);
 
-  Serial.println("ready");
+ // mcp2515.reset();
+ // mcp2515.setBitrate(CAN_125KBPS);
+ // mcp2515.setNormalMode();
+  delay(5000);
+
+  Serial.print("start setup move");
+
+  motor_shield.setSpeeds(400, 400);
+  delay(10000);
+  motor_shield.setSpeeds(-400, -400);
+   delay(5000);
+ home_actuators();
+  
+
+  Serial.println("einde setup move");
 }
 
 void loop() {
-  delay(delay_time);
- // process_serial_cmd();
+ // delay(25);
+  // process_serial_cmd();
 
 #ifdef PRINT_PULSE
   Serial.print(motor_1.encoder_pulses);
@@ -313,21 +319,15 @@ void loop() {
   if (has_homed) {
     compute_pid(motor_1);
     compute_pid(motor_2);
+   Serial.println(millis());
   }
 
+  /*
 
-#ifdef PRINT_A
-  Serial.print(analogRead(pos_pin));
-  Serial.print(" ");
-  Serial.println(analogRead(offset_pin));
-#endif
-
-/*
-
-  if (drawing_graph) {
-    Serial.print(motor_0.pwm);
-    Serial.print(' ');
-    Serial.println(motor_0.encoder_pulses - motor_0.setpoint);
-  }
+    if (drawing_graph) {
+      Serial.print(motor_0.pwm);
+      Serial.print(' ');
+      Serial.println(motor_0.encoder_pulses - motor_0.setpoint);
+    }
   */
 }

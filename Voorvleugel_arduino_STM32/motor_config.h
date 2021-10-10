@@ -15,7 +15,7 @@ struct Motor {
     
     float p_term = 2;
     float i_term = 0.00001;
-    float d_term = 0.000005;
+    float d_term = 0.000000;
 
     int setpoint = 0;
     int offset = 0;
@@ -49,12 +49,12 @@ Motor get_motor(Motor_Num m){
     Motor result;
     if (m == M1){
         result.offset_fixed = -1 * offset_fixed_global;
-        result.current_offset = 0;
+        result.current_offset = 30;
         result.set_speed = &set_m1_speed;
         result.get_current = &get_m1_current;
     }else if (m == M2){
         result.offset_fixed = offset_fixed_global;
-        result.current_offset = 408;
+        result.current_offset = 200; // was 408
         result.set_speed = &set_m2_speed;
         result.get_current = &get_m2_current;
     }
