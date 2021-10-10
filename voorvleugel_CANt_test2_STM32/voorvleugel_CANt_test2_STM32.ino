@@ -386,7 +386,8 @@ void loop() {
   if (timer - last_PID_links >= PID_interval) {
     last_PID_links = timer;
 
-    setpoint_pulsen_links = constrain(CAN_setpoint_pulsen, 0, max_pulsen);
+    setpoint_pulsen_links = CAN_setpoint_pulsen - CAN_offset_pulsen;
+    setpoint_pulsen_links = constrain(setpoint_pulsen_links, 0, max_pulsen);
 
     error_links = setpoint_pulsen_links - encoder_pulsen_links;
     //diff_error_links = 0.2 * (error_links - previus_error_links) + 0.8 * diff_error_links;
@@ -410,7 +411,8 @@ void loop() {
     // =========================== rechts
 
     
-    setpoint_pulsen_rechts = constrain(CAN_setpoint_pulsen, 0, max_pulsen);
+ setpoint_pulsen_rechts = CAN_setpoint_pulsen + CAN_offset_pulsen;
+    setpoint_pulsen_rechts = constrain(setpoint_pulsen_rechts, 0, max_pulsen);
 
     error_rechts = setpoint_pulsen_rechts - encoder_pulsen_rechts;
     //diff_error_rechts = 0.2 * (error_rechts - previus_error_rechts) + 0.8 * diff_error_rechts;
@@ -608,6 +610,7 @@ void read_CAN_data() {
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[0], canMsg.data[1]);  //byte 0-1 is int16_t pulsen voor
       Serial.println(CAN_setpoint_pulsen);
       CAN_offset_pulsen = int16_from_can(canMsg.data[2], canMsg.data[3]);  //byte 2-3 is int16_t pulsen offset
+      CAN_offset_pulsen = constrain(CAN_offset_pulsen, -4190, 4190);
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
