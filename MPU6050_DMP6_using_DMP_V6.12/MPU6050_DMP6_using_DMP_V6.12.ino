@@ -130,17 +130,17 @@ void setup() {
   devStatus = mpu.dmpInitialize();
 
   // supply your own gyro offsets here, scaled for min sensitivity
-  mpu.setXGyroOffset(163);
-  mpu.setYGyroOffset(99);
-  mpu.setZGyroOffset(-87);
-  mpu.setXAccelOffset(-1930);
-  mpu.setYAccelOffset(-428);
-  mpu.setZAccelOffset(1290);
+  mpu.setXGyroOffset(162);
+  mpu.setYGyroOffset(87);
+  mpu.setZGyroOffset(-88);
+  mpu.setXAccelOffset(-1892);
+  mpu.setYAccelOffset(-490);
+  mpu.setZAccelOffset(1316);
   // make sure it worked (returns 0 if so)
   if (devStatus == 0) {
     // Calibration Time: generate offsets and calibrate our MPU6050
 
-    calibratie(); // uncomment calibratie(); om de offset te bepalen. vul de waarde hierboven in en comment calibratie zodat de waarde vast staat.
+    // calibratie(); // uncomment calibratie(); om de offset te bepalen. vul de waarde hierboven in en comment calibratie zodat de waarde vast staat.
     Serial.println();
     mpu.PrintActiveOffsets();
     // turn on the DMP, now that it's ready
@@ -198,6 +198,8 @@ void loop() {
     Serial.print(pitch);
     Serial.print("\t");
     Serial.print(roll);
+    Serial.print("\t");
+    Serial.print(ypr[0] * 180 / M_PI);   // radians naar graden);
     Serial.println();
 
     //static uint8_t counter;
