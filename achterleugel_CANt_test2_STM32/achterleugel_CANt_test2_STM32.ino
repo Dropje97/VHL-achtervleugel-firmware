@@ -69,12 +69,13 @@ bool overcurrent = false;
 bool direction_change = false;
 bool direction = 1;  // 0= negatief 1=positief
 bool previus_direction = direction;
-bool homeing = true;
+bool homeing = false;
 uint8_t CAN_error = 0;  //1= motor disconnect
+bool has_homed = false;
 
 struct can_frame ret;
 struct can_frame canMsg;
-int16_t CAN_setpoint_pulsen = 156;
+int16_t CAN_setpoint_pulsen = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -92,10 +93,14 @@ void setup() {
   // Atach a CHANGE interrupt to PinB and exectute the update function when this change occurs.
   attachInterrupt(digitalPinToInterrupt(pinA), encoderA_ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinB), encoderB_ISR, CHANGE);
-  md.setM2Speed(200);
+/*  md.setM2Speed(200);
   delay(1000);
   md.setM2Speed(-200);
   delay(1000);
+<<<<<<< HEAD
+=======
+*/
+>>>>>>> b659a4059f239d35aecabeee782c816517440cc8
 }
 
 void encoderB_ISR() {
@@ -142,7 +147,7 @@ void loop() {
   if (homeing) {
     home();
     setpoint_PWM = setpoint_home_PWM;
-  } else {
+  } else if (has_homed){
     setpoint_PWM = setpoint_PID_PWM;
   }
 
@@ -344,7 +349,7 @@ void home() {
       Serial.println(amps);
 #endif
       delay(500);               // wacht 500ms zodat de motor stil staat.
-      encoder_pulsen = 0;       // reset de pulsen.
+      encoder_pulsen = -156;       // reset de pulsen.
       setpoint_pulsen = 0;      // reset het setpoint.
       setpoint_home_PWM = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
     //  CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
@@ -353,11 +358,14 @@ void home() {
       amps = 0;                 // zet het stroomsterkte filter weer op 0.
       overcurrent = false;      // overcurrent is false na het homen zodat de motor weer kan draaien.
       homeing = false;          // homen is klaar.
+      has_homed = true;
 #ifdef HOME_DEBUG
       Serial.println("homed");
 #endif
+   delay(4000); 
     }
   }
+  
 }
 
 void send_CAN_setpoint_PWM() {
