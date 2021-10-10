@@ -110,7 +110,7 @@ uint8_t CAN_error = 0;  //1= motor disconnect
 struct can_frame ret;
 struct can_frame canMsg;
 int16_t CAN_setpoint_pulsen = 0;
-
+int16_t CAN_offset_pulsen = 0;
 void setup() {
   Serial.begin(115200);
   Serial.println("Dual VNH5019 Motor Shield");
@@ -409,6 +409,7 @@ void loop() {
 
     // =========================== rechts
 
+    
     setpoint_pulsen_rechts = constrain(CAN_setpoint_pulsen, 0, max_pulsen);
 
     error_rechts = setpoint_pulsen_rechts - encoder_pulsen_rechts;
@@ -604,8 +605,9 @@ void read_CAN_data() {
     Serial.println(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
       Serial.print("CAN frame setpulsen: ");
-      CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
+      CAN_setpoint_pulsen = int16_from_can(canMsg.data[0], canMsg.data[1]);  //byte 0-1 is int16_t pulsen voor
       Serial.println(CAN_setpoint_pulsen);
+      CAN_offset_pulsen = int16_from_can(canMsg.data[2], canMsg.data[3]);  //byte 2-3 is int16_t pulsen offset
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
