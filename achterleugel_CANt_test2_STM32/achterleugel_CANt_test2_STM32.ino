@@ -2,7 +2,7 @@
 #include "can.h"
 #include "mcp2515.h"
 
-#define HOME_DEBUG
+//#define HOME_DEBUG
 
 MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 10, 6, A1);
@@ -97,10 +97,7 @@ void setup() {
   delay(1000);
   md.setM2Speed(-200);
   delay(1000);
-<<<<<<< HEAD
-=======
 */
->>>>>>> b659a4059f239d35aecabeee782c816517440cc8
 }
 
 void encoderB_ISR() {
@@ -204,7 +201,7 @@ void loop() {
     last_amps_poll = timer;
     amps = amps * 0.96 + md.getM2CurrentMilliamps() * 0.04;
 
-    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 2000; // was +1000
+    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 3000; // was +1000
     if (amps > overcurrent_limit) {
       overcurrent = true;
       md.setM2Brake(400);
@@ -266,7 +263,7 @@ void loop() {
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
 
-    Serial.println(encoder_pulsen);
+  //  Serial.println(encoder_pulsen);
     /*
     Serial.print(overcurrent_limit);
     Serial.print(" - ");
