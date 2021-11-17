@@ -28,8 +28,8 @@ char* password = "Zonnepanelen1";
 
 
 // == MQTT Broker settings ==
-const char* mqtt_server = "martendevlugt.nl";
-const int mqtt_server_port = 10377;
+const char* mqtt_server = "telemetrie.zonnebootteam.nl";
+const int mqtt_server_port = 1883;
 const char* mqtt_username = "Zonneboot";
 const char* mqtt_password = "Zonnepanelen1";
 
