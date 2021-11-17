@@ -140,7 +140,7 @@ void setup() {
   if (devStatus == 0) {
     // Calibration Time: generate offsets and calibrate our MPU6050
 
-    // calibratie(); // uncomment calibratie(); om de offset te bepalen. vul de waarde hierboven in en comment calibratie zodat de waarde vast staat.
+    calibratie(); // uncomment calibratie(); om de offset te bepalen. vul de waarde hierboven in en comment calibratie zodat de waarde vast staat.
     Serial.println();
     mpu.PrintActiveOffsets();
     // turn on the DMP, now that it's ready
