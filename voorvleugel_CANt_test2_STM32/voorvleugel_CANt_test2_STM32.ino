@@ -499,7 +499,7 @@ void loop() {
   //============================================== send/read can data ===========================================================================
 
   //=========================== send_CAN_setpoint_PWM
-  //send_CAN_setpoint_PWM();
+  send_CAN_setpoint_PWM();
 
   //========================= send current
   //  send_CAN_current();
