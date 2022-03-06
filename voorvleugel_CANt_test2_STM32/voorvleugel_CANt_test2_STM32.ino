@@ -24,8 +24,8 @@ const uint8_t amps_poll_interval = 1;        // tijd tussen de metingen van het 
 const uint8_t serial_print_interval = 100;    // tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
-const uint8_t CAN_send_interval = 10;        // de CAN berichten worden 100x per seconden verzonden.
 const uint16_t CAN_read_interval = 50;     // de CAN berichten worden 1000x per seconden ontvangen.
+const uint16_t CAN_send_PWM_interval = 100; // PWM CAN berichten 10x per seconden verzenden
 
 const uint16_t CAN_ID = 51;               // CAN ID van setpoint_PWM
 const uint16_t CAN_ID_amps_achter = 250;  // CAN ID van CAN_ID_amps_achter
@@ -52,8 +52,8 @@ uint32_t last_PID_rechts = 0;
 
 uint32_t last_amps_poll = 0;
 uint32_t last_serial_print = 0;
-uint32_t last_CAN_send = 0;
 uint32_t last_CAN_read = 0;
+uint32_t last_CAN_send_PWM =0;
 uint32_t timer = millis();  // wordt gelijk gesteld aan millis zodat millis niet elke keer opgevraagd wordt want dat kost veel cpu tijd
 
 int32_t smoothing_PWM_links = 0;  //
@@ -499,7 +499,10 @@ void loop() {
   //============================================== send/read can data ===========================================================================
 
   //=========================== send_CAN_setpoint_PWM
+  if (timer - last_CAN_send_PWM > CAN_send_PWM_interval){
+  last_CAN_send_PWM = timer;
   send_CAN_setpoint_PWM();
+  }
 
   //========================= send current
   //  send_CAN_current();
