@@ -25,7 +25,7 @@ const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID bereken
 const uint8_t CAN_send_interval = 10;        // de CAN berichten worden 100x per seconden verzonden.
 const uint16_t CAN_read_interval = 50;     // de CAN berichten worden 1000x per seconden ontvangen.
 
-const uint16_t CAN_ID = 51;               // CAN ID van setpoint_PWM
+const uint16_t CAN_ID = 50;               // CAN ID van setpoint_PWM
 const uint16_t CAN_ID_amps_achter = 250;  // CAN ID van CAN_ID_amps_achter
 const uint16_t CAN_ID_home_achter = 300;  // CAN ID van home_achter
 
