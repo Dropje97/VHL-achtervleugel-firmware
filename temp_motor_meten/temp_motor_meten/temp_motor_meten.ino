@@ -1,45 +1,117 @@
 #include <Adafruit_ADS1X15.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "RunningAverage.h"
+
+/*
+   expected states:
+   idle;            wait for permission, stop loop after 10min consecutively measurments, charge battery
+   startLoad;       start 1A load and connect to motor
+   takeMeasurment;  take measurment 1s
+   stopLoad;        stop 1A load and disconntect motor
+   sendResult;      calculate temperature and send/show results with mqtt and display them on oled
+   coolDown;        wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle) stop loop after 10min consecutively measurments
+*/
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+
+#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 Adafruit_ADS1115 ads;  /* Use this for the 16-bit version */
-//Adafruit_ADS1015 ads;     /* Use this for the 12-bit version */
+
+// Declare the states in meaningful English. Enums start enumerating
+// at zero, incrementing in steps of 1 unless overridden. We use an
+// enum 'class' here for type safety and code readability
+enum class measurmentState : uint8_t {
+  IDLE,             // defaults to 0, wait for permission, stop loop after 10min consecutively measurments, charge battery
+  STARTLOAD,        // defaults to 1, start 1A load and connect to motor
+  TAKEMEASRMENT,    // defaults to 2, take measurment 1s (400 samples)
+  STOPLOAD,         // defaults to 3, stop 1A load
+  SENDREULT,        // defaults to 4, calculate temperature and send/show results with mqtt and display them on oled
+  COOLDOWN,         // defaults to 5, wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
+  // stop loop after 10min consecutively measurments
+};
+
+// Keep track of the current State (it's a measurmentState variable)
+measurmentState currState = measurmentState::IDLE;
+
+/* Be sure to update this value based on the IC and the gain settings! */
+const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results) */
+
+bool trottlePermission = false;       // permission from trottle to take a meassurment
+bool motorConnected = false;          // 1A load and ads1115 connected to motor
+bool tenMinCoolDown = false;           // stop taking meassurments after 10min consecutively measuring
+
+int16_t measurementRaw = 0;
+float voltagemV = 0;
 
 void setup(void)
 {
   Serial.begin(112500);
-  Serial.println("Hello!");
+  Serial.println(F("Hello!"));
 
-  Serial.println("Getting differential reading from AIN0 (P) and AIN1 (N)");
-  Serial.println("ADC Range: +/- 6.144V (1 bit = 3mV/ADS1015, 0.1875mV/ADS1115)");
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;); // Don't proceed, loop forever
+  }
+
+  // Clear the buffer
+  display.clearDisplay();
+
+  Serial.println(F("Getting differential reading from AIN0 (P) and AIN1 (N)"));
+  Serial.println(F("ADC Range: +/- 0.256V (1 bit = 0.0078125mV)"));
 
   // The ADC input range (or gain) can be changed via the following
   // functions, but be careful never to exceed VDD +0.3V max, or to
   // exceed the upper and lower limits if you adjust the input range!
   // Setting these values incorrectly may destroy your ADC!
-  // https://learn.adafruit.com/adafruit-4-channel-adc-breakouts/   ADS1015  ADS1115
-  //                                                                -------  -------
-  // ads.setGain(GAIN_TWOTHIRDS);  // 2/3x gain +/- 6.144V  1 bit = 3mV      0.1875mV (default)
-  // ads.setGain(GAIN_ONE);        // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
-  // ads.setGain(GAIN_TWO);        // 2x gain   +/- 2.048V  1 bit = 1mV      0.0625mV
-  // ads.setGain(GAIN_FOUR);       // 4x gain   +/- 1.024V  1 bit = 0.5mV    0.03125mV
-  // ads.setGain(GAIN_EIGHT);      // 8x gain   +/- 0.512V  1 bit = 0.25mV   0.015625mV
-  // ads.setGain(GAIN_SIXTEEN);    // 16x gain  +/- 0.256V  1 bit = 0.125mV  0.0078125mV
+  // https://learn.adafruit.com/adafruit-4-channel-adc-breakouts/   ADS1115
+  //                                                                -------
+  // ads.setGain(GAIN_TWOTHIRDS);  // 2/3x gain +/- 6.144V          0.1875mV (default)
+  // ads.setGain(GAIN_ONE);        // 1x gain   +/- 4.096V          0.125mV
+  // ads.setGain(GAIN_TWO);        // 2x gain   +/- 2.048V          0.0625mV
+  // ads.setGain(GAIN_FOUR);       // 4x gain   +/- 1.024V          0.03125mV
+  // ads.setGain(GAIN_EIGHT);      // 8x gain   +/- 0.512V          0.015625mV
+  ads.setGain(GAIN_SIXTEEN);    // 16x gain  +/- 0.256V          0.0078125mV
+
+  // ads.setDataRate(RATE_ADS1115_8SPS);    // (0x0000)    8 samples per second
+  // ads.setDataRate(RATE_ADS1115_16SPS);   // (0x0020)   16 samples per second
+  // ads.setDataRate(RATE_ADS1115_32SPS);   // (0x0040)   32 samples per second
+  // ads.setDataRate(RATE_ADS1115_64SPS);   // (0x0060)   64 samples per second
+  // ads.setDataRate(RATE_ADS1115_128SPS);  // (0x0080)  128 samples per second (default)
+  // ads.setDataRate(RATE_ADS1115_250SPS);  // (0x00A0)  250 samples per second
+  // ads.setDataRate(RATE_ADS1115_475SPS);  // (0x00C0)  475 samples per second
+  ads.setDataRate(RATE_ADS1115_860SPS);  // (0x00E0)  860 samples per second
 
   if (!ads.begin()) {
-    Serial.println("Failed to initialize ADS.");
+    Serial.println(F("Failed to initialize ADS."));
     while (1);
-  }}
+  }
+}
 
 void loop(void)
 {
-  int16_t results;
+  // Process according to our State Diagram
+  switch (currState) {
 
-  /* Be sure to update this value based on the IC and the gain settings! */
-  //float   multiplier = 3.0F;    /* ADS1015 @ +/- 6.144V gain (12-bit results) */
-  float multiplier = 0.1875F; /* ADS1115  @ +/- 6.144V gain (16-bit results) */
+    // Initial state (or final returned state)
+    case elevatorState::IDLE:
+  
+  break;
 
-  results = ads.readADC_Differential_0_1();
+  measurementRaw = ads.readADC_Differential_0_1();
+  voltagemV = measurementRaw * multiplier;
+  Serial.print("Differential: "); Serial.print(measurementRaw); Serial.print("("); Serial.print(voltagemV); Serial.println("mV)");
 
-  Serial.print("Differential: "); Serial.print(results); Serial.print("("); Serial.print(results * multiplier); Serial.println("mV)");
-
-  delay(1000);
+  display.clearDisplay();
+  display.setTextSize(2);             // Draw 2X-scale text
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);            // Start at top-left corner
+  display.print(voltagemV , 3);
+  display.display();
+  delay(2000);
 }
