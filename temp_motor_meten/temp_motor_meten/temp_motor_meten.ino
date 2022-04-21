@@ -94,23 +94,23 @@ void loop(void) {
 
     case measurmentState::STARTLOAD:
 
-          break;
+      break;
 
     case measurmentState::TAKEMEASUREMENT:
 
-          break;
+      break;
 
     case measurmentState::STOPLOAD:
 
-          break;
+      break;
 
     case measurmentState::SENDRESULT:
 
-          break;
+      break;
 
     case measurmentState::COOLDOWN:
 
-    break;
+      break;
 
   }
 
