@@ -3,15 +3,6 @@
 #include <Adafruit_SSD1306.h>
 #include "RunningAverage.h"
 
-/*
-   expected states:
-   idle;            wait for permission, stop loop after 10min consecutively measurments, charge battery
-   startLoad;       start 1A load and connect to motor
-   takeMeasurment;  take measurment 1s
-   stopLoad;        stop 1A load and disconntect motor
-   sendResult;      calculate temperature and send/show results with mqtt and display them on oled
-   coolDown;        wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle) stop loop after 10min consecutively measurments
-*/
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
