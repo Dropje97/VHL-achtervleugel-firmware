@@ -47,7 +47,7 @@ void setup(void)
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
-    for (;;); // Don't proceed, loop forever
+  //  for (;;); // Don't proceed, loop forever
   }
 
   // Clear the buffer
@@ -76,11 +76,11 @@ void setup(void)
   // ads.setDataRate(RATE_ADS1115_128SPS);  // (0x0080)  128 samples per second (default)
   // ads.setDataRate(RATE_ADS1115_250SPS);  // (0x00A0)  250 samples per second
   // ads.setDataRate(RATE_ADS1115_475SPS);  // (0x00C0)  475 samples per second
-  ads.setDataRate(RATE_ADS1115_860SPS);  // (0x00E0)  860 samples per second
+  ads.setDataRate(RATE_ADS1115_860SPS);  // (0x00E0)  860 samples per second  // about 400 samples per second 
 
   if (!ads.begin()) {
     Serial.println(F("Failed to initialize ADS."));
-    while (1);
+  //  while (1);
   }
 }
 
