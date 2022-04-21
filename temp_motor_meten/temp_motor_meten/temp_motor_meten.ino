@@ -35,6 +35,7 @@ const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit result
 bool trottlePermission = false;  // permission from trottle to take a meassurment
 bool motorConnected = false;     // 1A load and ads1115 connected to motor
 bool tenMinCoolDown = false;     // stop taking meassurments after 10min consecutively measuring
+bool chargeBattery = false;      // charge battery when in idle 
 
 int16_t measurementRaw = 0;
 float voltagemV = 0;
@@ -89,6 +90,14 @@ void loop(void) {
 
     // Initial state (or final returned state)
     case measurmentState::IDLE:
+
+     if(trottlePermission && !tenMinCoolDown) {
+       if(chargeBattery) {
+         // todo: turnOffBattry()
+         chargeBattery = false;
+       }
+       currState = STARTLOAD;
+     }
 
       break;
 
