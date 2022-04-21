@@ -91,10 +91,28 @@ void loop(void) {
     case measurmentState::IDLE:
 
       break;
+
+    case measurmentState::STARTLOAD:
+
+          break;
+
+    case measurmentState::TAKEMEASUREMENT:
+
+          break;
+
+    case measurmentState::STOPLOAD:
+
+          break;
+
+    case measurmentState::SENDRESULT:
+
+          break;
+
+    case measurmentState::COOLDOWN:
+
   }
 
-  //measurementRaw = ads.readADC_Differential_0_1();
-  voltagemV = measurementRaw * multiplier;
+  //measurementcasmeasurementRaw * multiplier;
   Serial.print("Differential: ");
   Serial.print(measurementRaw);
   Serial.print("(");
