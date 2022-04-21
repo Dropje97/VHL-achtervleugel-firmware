@@ -90,7 +90,7 @@ void loop(void)
   switch (currState) {
 
     // Initial state (or final returned state)
-    case elevatorState::IDLE:
+    case measurmentState::IDLE:
   
   break;
 
