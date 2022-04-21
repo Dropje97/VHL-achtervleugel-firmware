@@ -110,6 +110,8 @@ void loop(void) {
 
     case measurmentState::COOLDOWN:
 
+    break;
+
   }
 
   //measurementcasmeasurementRaw * multiplier;
