@@ -17,12 +17,12 @@ Adafruit_ADS1115 ads; /* Use this for the 16-bit version */
 // at zero, incrementing in steps of 1 unless overridden. We use an
 // enum 'class' here for type safety and code readability
 enum class measurmentState : uint8_t {
-  IDLE,           // defaults to 0, wait for permission, stop loop after 10min consecutively measurments, charge battery
-  STARTLOAD,      // defaults to 1, start 1A load and connect to motor
+  IDLE,             // defaults to 0, wait for permission, stop loop after 10min consecutively measurments, charge battery
+  STARTLOAD,        // defaults to 1, start 1A load and connect to motor
   TAKEMEASUREMENT,  // defaults to 2, take measurement 1s (400 samples)
-  STOPLOAD,       // defaults to 3, stop 1A load
-  SENDRESULT,      // defaults to 4, calculate temperature and send/show results with mqtt and display them on oled
-  COOLDOWN,       // defaults to 5, wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
+  STOPLOAD,         // defaults to 3, stop 1A load
+  SENDRESULT,       // defaults to 4, calculate temperature and send/show results with mqtt and display them on oled
+  COOLDOWN,         // defaults to 5, wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
   // stop loop after 10min consecutively measurments
 };
 
@@ -94,24 +94,23 @@ void loop(void) {
 
     case measurmentState::STARTLOAD:
 
-          break;
+      break;
 
     case measurmentState::TAKEMEASUREMENT:
 
-          break;
+      break;
 
     case measurmentState::STOPLOAD:
 
-          break;
+      break;
 
     case measurmentState::SENDRESULT:
 
-          break;
+      break;
 
     case measurmentState::COOLDOWN:
 
-    break;
-
+      break;
   }
 
   //measurementcasmeasurementRaw * multiplier;
