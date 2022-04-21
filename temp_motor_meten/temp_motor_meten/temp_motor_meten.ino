@@ -91,12 +91,19 @@ void loop(void) {
     // Initial state (or final returned state)
     case measurmentState::IDLE:
 
+    if(!trottlePermission && !chargeBattery) {
+      // turnOnBattery()
+      chargeBattery = true;
+    }
+
      if(trottlePermission && !tenMinCoolDown) {
        if(chargeBattery) {
          // todo: turnOffBattry()
          chargeBattery = false;
        }
+       if(!chargeBattery) {
        currState = STARTLOAD;
+       }
      }
 
       break;
