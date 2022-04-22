@@ -17,12 +17,12 @@ Adafruit_ADS1115 ads; /* Use this for the 16-bit version */
 // at zero, incrementing in steps of 1 unless overridden. We use an
 // enum 'class' here for type safety and code readability
 enum class measurmentState : uint8_t {
-  IDLE,             // defaults to 0, wait for permission, stop loop after 10min consecutively measurments, charge battery
-  STARTLOAD,        // defaults to 1, start 1A load and connect to motor
-  TAKEMEASUREMENT,  // defaults to 2, take measurement 1s (400 samples)
-  STOPLOAD,         // defaults to 3, stop 1A load
-  SENDRESULT,       // defaults to 4, calculate temperature and send/show results with mqtt and display them on oled
-  COOLDOWN,         // defaults to 5, wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
+  IDLE,             // defaults to 0, wait for permission, stop loop after 10min consecutive measurments, charge battery
+  STARTLOAD,        // defaults to 2, start 1A load
+  TAKEMEASUREMENT,  // defaults to 3, take measurement 1s (400 samples)
+  STOPLOAD,         // defaults to 4, stop 1A load
+  SENDRESULT,       // defaults to 5, calculate temperature and send/show results with mqtt and display them on oled
+  COOLDOWN,         // defaults to 6, wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
   // stop loop after 10min consecutively measurments
 };
 
@@ -33,6 +33,7 @@ measurmentState currState = measurmentState::IDLE;
 const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results) */
 
 bool trottlePermission = false;  // permission from trottle to take a meassurment
+bool lastTrottlePermission = trottlePermission;
 bool motorConnected = false;     // 1A load and ads1115 connected to motor
 bool tenMinCoolDown = false;     // stop taking meassurments after 10min consecutively measuring
 bool chargeBattery = false;      // charge battery when in idle 
@@ -91,18 +92,37 @@ void loop(void) {
     // Initial state (or final returned state)
     case measurmentState::IDLE:
 
-    if(!trottlePermission && !chargeBattery) {
-      // turnOnBattery()
+    if((!trottlePermission || tenMinCoolDown) && motorConnected) {
+      // todo: disconntectMotor()
+      motorConnected = false;
+    }
+    if((!trottlePermission || tenMinCoolDown) && !motorConnected) {
+      // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is allowed to seal!
+    }
+    if((!trottlePermission || tenMinCoolDown) && !chargeBattery) {
+      // todo: turnOnBattery()
       chargeBattery = true;
     }
 
+    // reset tenMinCoolDown if trottlePermission cheances 
+    if(trottlePermission =! lastTrottlePermission) {
+      tenMinCoolDown = false;
+      lastTrottlePermission = trottlePermission;
+    }
+
+     // if allowed prepare for measurment
      if(trottlePermission && !tenMinCoolDown) {
        if(chargeBattery) {
          // todo: turnOffBattry()
          chargeBattery = false;
        }
-       if(!chargeBattery) {
-       currState = STARTLOAD;
+       if(!motorConnected) {
+         // todo: connectMotor()
+         motorConnected = true;
+       }
+       if(!chargeBattery && !motorConnected) {
+         // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is not allowed to seal!
+         currState = STARTLOAD;
        }
      }
 
