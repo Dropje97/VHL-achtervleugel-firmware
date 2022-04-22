@@ -19,10 +19,10 @@ Adafruit_ADS1115 ads; /* Use this for the 16-bit version */
 enum class measurmentState : uint8_t {
   IDLE,             // defaults to 0, wait for permission, stop loop after 10min consecutive measurments, charge battery
   STARTLOAD,        // defaults to 2, start 1A load
-  TAKEMEASUREMENT,  // defaults to 3, take measurement 1s (400 samples)
+  TAKEMEASUREMENT,  // defaults to 3, take measurement 0.1s (40 samples)
   STOPLOAD,         // defaults to 4, stop 1A load
   SENDRESULT,       // defaults to 5, calculate temperature and send/show results with mqtt and display them on oled
-  COOLDOWN,         // defaults to 6, wait 2s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
+  COOLDOWN,         // defaults to 6, wait 1s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
   // stop loop after 10min consecutively measurments
 };
 
@@ -104,7 +104,7 @@ void loop(void) {
       chargeBattery = true;
     }
 
-    // reset tenMinCoolDown if trottlePermission cheances 
+    // reset tenMinCoolDown if trottlePermission changes 
     if(trottlePermission =! lastTrottlePermission) {
       tenMinCoolDown = false;
       lastTrottlePermission = trottlePermission;
@@ -120,6 +120,7 @@ void loop(void) {
          // todo: connectMotor()
          motorConnected = true;
        }
+       // if everything is ready, start the cooldown timer, the load and tell the trottle we are meassuring
        if(!chargeBattery && !motorConnected) {
          // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is not allowed to seal!
          currState = STARTLOAD;
