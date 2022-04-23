@@ -32,11 +32,12 @@ measurmentState currState = measurmentState::IDLE;
 /* Be sure to update this value based on the IC and the gain settings! */
 const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results) */
 
-bool trottlePermission = false;  // permission from trottle to take a meassurment
+bool trottlePermission = false;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
 bool motorConnected = false;     // 1A load and ads1115 connected to motor
-bool tenMinCoolDown = false;     // stop taking meassurments after 10min consecutively measuring
+bool tenMinCoolDown = false;     // stop taking measurments after 10min consecutively measuring
 bool chargeBattery = false;      // charge battery when in idle 
+bool currentSourceOn = false;    // current for measuring temperture of motor
 
 int16_t measurementRaw = 0;
 float voltagemV = 0;
@@ -105,7 +106,7 @@ void loop(void) {
     }
 
     // reset tenMinCoolDown if trottlePermission changes 
-    if(trottlePermission =! lastTrottlePermission) {
+    if(trottlePermission != lastTrottlePermission) {
       tenMinCoolDown = false;
       lastTrottlePermission = trottlePermission;
     }
@@ -120,10 +121,10 @@ void loop(void) {
         // todo: connectMotor()
         motorConnected = true;
       }
-      // if everything is ready, start the cooldown timer, the load and tell the trottle we are meassuring
+      // if everything is ready, start the cooldown timer, the load and tell the trottle we are measuring
       if(!chargeBattery && !motorConnected) {
         // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is not allowed to seal!
-        currState = STARTLOAD;
+        currState = measurmentState::STARTLOAD;
       }
     }
 
@@ -139,11 +140,13 @@ void loop(void) {
     }
     // wait ...ms for current to settle
     if(currentSourceOn) {
+      static uint32_t tenMinCoolDownTime = millis();
       if(millis() - currentSourceOnTime >= currentSourceOnDelay) {
-
+      currState = measurmentState::TAKEMEASUREMENT;
+      tenMinCoolDownTime = millis();
       }
     }
-
+ 
       break;
 
     case measurmentState::TAKEMEASUREMENT:
