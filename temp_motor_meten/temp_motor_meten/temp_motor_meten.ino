@@ -18,11 +18,11 @@ Adafruit_ADS1115 ads; /* Use this for the 16-bit version */
 // enum 'class' here for type safety and code readability
 enum class measurmentState : uint8_t {
   IDLE,             // defaults to 0, wait for permission, stop loop after 10min consecutive measurments, charge battery
-  STARTLOAD,        // defaults to 2, start 1A load
-  TAKEMEASUREMENT,  // defaults to 3, take measurement 0.1s (40 samples)
-  STOPLOAD,         // defaults to 4, stop 1A load
-  SENDRESULT,       // defaults to 5, calculate temperature and send/show results with mqtt and display them on oled
-  COOLDOWN,         // defaults to 6, wait 1s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
+  STARTLOAD,        // defaults to 1, start 1A load
+  TAKEMEASUREMENT,  // defaults to 2, take measurement 0.1s (40 samples)? 1s to long?
+  STOPLOAD,         // defaults to 3, stop 1A load
+  SENDRESULT,       // defaults to 4, calculate temperature and send/show results with mqtt and display them on oled
+  COOLDOWN,         // defaults to 5, wait 1s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
   // stop loop after 10min consecutively measurments
 };
 
@@ -110,26 +110,39 @@ void loop(void) {
       lastTrottlePermission = trottlePermission;
     }
 
-     // if allowed prepare for measurment
-     if(trottlePermission && !tenMinCoolDown) {
-       if(chargeBattery) {
-         // todo: turnOffBattry()
-         chargeBattery = false;
-       }
-       if(!motorConnected) {
-         // todo: connectMotor()
-         motorConnected = true;
-       }
-       // if everything is ready, start the cooldown timer, the load and tell the trottle we are meassuring
-       if(!chargeBattery && !motorConnected) {
-         // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is not allowed to seal!
-         currState = STARTLOAD;
-       }
-     }
+    // if allowed prepare for measurment
+    if(trottlePermission && !tenMinCoolDown) {
+      if(chargeBattery) {
+        // todo: turnOffBattry()
+        chargeBattery = false;
+      }
+      if(!motorConnected) {
+        // todo: connectMotor()
+        motorConnected = true;
+      }
+      // if everything is ready, start the cooldown timer, the load and tell the trottle we are meassuring
+      if(!chargeBattery && !motorConnected) {
+        // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is not allowed to seal!
+        currState = STARTLOAD;
+      }
+    }
 
       break;
 
     case measurmentState::STARTLOAD:
+    static uint32_t currentSourceOnTime = millis();
+    const static int8_t currentSourceOnDelay = 20;    // wait 20ms for current to settle (unsure if 20ms is enough)
+
+    if (!currentSourceOn) {
+      // todo: turnOnCurrentSource();
+      currentSourceOn = true;
+    }
+    // wait ...ms for current to settle
+    if(currentSourceOn) {
+      if(millis() - currentSourceOnTime >= currentSourceOnDelay) {
+
+      }
+    }
 
       break;
 
