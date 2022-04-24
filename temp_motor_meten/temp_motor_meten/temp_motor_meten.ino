@@ -3,6 +3,13 @@
 #include <Adafruit_SSD1306.h>
 #include "RunningAverage.h"
 
+/*
+ideën:
+1. voorkom dat de boot niet snel reageert wanneer je bij de stijger aan het manuvreren bent.
+door bv. door alleen te gaan meten wanneer de trottle recentelijk over de 30% is geweest. of dat de boot langere tijd in de zelde richting vaart
+2. de temp meting mag geen invloed hebben op de noodstop.
+3. de schoef moet compleet stil staan anders produceert die zelf stroom als een dynamo.
+*/
 
 #define SCREEN_WIDTH 128  // OLED display width, in pixels
 #define SCREEN_HEIGHT 32  // OLED display height, in pixels
