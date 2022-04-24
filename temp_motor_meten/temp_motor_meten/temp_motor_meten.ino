@@ -32,12 +32,11 @@ enum class measurmentState : uint8_t {
   COOLDOWN,         // defaults to 5, wait 1s for lm317 cool down, check permission wile waiting (if permission start load, else disconntect motor and idle)
   // stop loop after 10min consecutively measurments
 };
+measurmentState currState = measurmentState::IDLE; // Keep track of the current State (it's a measurmentState variable)
 
-// Keep track of the current State (it's a measurmentState variable)
-measurmentState currState = measurmentState::IDLE;
+const int8_t READY_PIN = 3; // Pin connected to the ALERT/RDY signal for new sample notification.
 
-/* Be sure to update this value based on the IC and the gain settings! */
-const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results) */
+const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
 
 bool trottlePermission = false;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
@@ -49,6 +48,14 @@ bool currentSourceOn = false;    // current for measuring temperture of motor
 int16_t measurementRaw = 0;
 float voltagemV = 0;
 
+#ifndef IRAM_ATTR // This is required on ESP32 to put the ISR in IRAM. Define as
+#define IRAM_ATTR // empty for other platforms. Be careful - other platforms may have
+#endif            // other requirements.
+
+volatile bool newMeasurment = false;
+void IRAM_ATTR NewDataReadyISR() {
+  newMeasurment = true;
+}
 void setup(void) {
   Serial.begin(112500);
   Serial.println(F("Hello!"));
@@ -85,12 +92,17 @@ void setup(void) {
   // ads.setDataRate(RATE_ADS1115_128SPS);  // (0x0080)  128 samples per second (default)
   // ads.setDataRate(RATE_ADS1115_250SPS);  // (0x00A0)  250 samples per second
   // ads.setDataRate(RATE_ADS1115_475SPS);  // (0x00C0)  475 samples per second
-  ads.setDataRate(RATE_ADS1115_860SPS);  // (0x00E0)  860 samples per second  // about 400 samples per second
+  ads.setDataRate(RATE_ADS1115_860SPS);  // (0x00E0)  860 samples per second  // about 400 samples per second in non continuous mode
 
   if (!ads.begin()) {
     Serial.println(F("Failed to initialize ADS."));
     //  while (1);
   }
+
+  pinMode(READY_PIN, INPUT);
+  attachInterrupt(digitalPinToInterrupt(READY_PIN), NewDataReadyISR, FALLING);  // We get a falling edge every time a new sample is ready.
+
+  ads.startADCReading(ADS1X15_REG_CONFIG_MUX_DIFF_0_1, /*continuous=*/true);     // Start continuous conversions.
 }
 
 void loop(void) {
@@ -157,6 +169,19 @@ void loop(void) {
       break;
 
     case measurmentState::TAKEMEASUREMENT:
+    // todo: na te veel tijd geen meting hebben gehad stop met meten zodat de boot weer kan varen en stuur een error. misschien een negative temperatuur als error?
+
+    static int16_t i = 0;
+    if(newMeasurment && i <= 80) { // wait until there is an new measurement and stop after ... measurments
+      newMeasurment = false;       // reset newMeasurement
+      measurementRaw = ads.getLastConversionResults();
+      // todo: add measurementRaw to measurmentRawAvg?? float problem? solution first calculate temperture? I don't know
+      i++; // add 1 to the measurement counter
+    }
+    if(i > 80) {
+      i = 0;
+      currState = measurmentState::STOPLOAD;
+    }
 
       break;
 
