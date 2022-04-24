@@ -63,7 +63,6 @@ void setup(void) {
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
-    //  for (;;); // Don't proceed, loop forever
   }
 
   // Clear the buffer
@@ -96,7 +95,6 @@ void setup(void) {
 
   if (!ads.begin()) {
     Serial.println(F("Failed to initialize ADS."));
-    //  while (1);
   }
 
   pinMode(READY_PIN, INPUT);
@@ -106,7 +104,7 @@ void setup(void) {
 }
 
 void loop(void) {
-  // Process according to our State Diagram
+
   switch (currState) {
 
     // Initial state (or final returned state)
@@ -186,6 +184,14 @@ void loop(void) {
       break;
 
     case measurmentState::STOPLOAD:
+
+    if (currentSourceOn) {
+      // todo: turnOffCurrentSource();
+      currentSourceOn = false;
+    }
+    if(!currentSourceOn) {
+      currState = measurmentState::SENDRESULT;
+    }
 
       break;
 
