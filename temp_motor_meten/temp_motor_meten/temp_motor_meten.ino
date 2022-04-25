@@ -43,14 +43,20 @@ bool lastTrottlePermission = trottlePermission;
 bool motorConnected = false;     // 1A load and ads1115 connected to motor
 bool tenMinCoolDown = false;     // stop taking measurments after 10min consecutively measuring
 bool chargeBattery = false;      // charge battery when in idle 
-bool currentSourceOn = false;    // current for measuring temperture of motor
+bool currentSourceOn = false;    // current for measuring temperature =  of motor
 
 int16_t measurementRaw = 0;
 float voltagemV = 0;
 
-#ifndef IRAM_ATTR // This is required on ESP32 to put the ISR in IRAM. Define as
-#define IRAM_ATTR // empty for other platforms. Be careful - other platforms may have
-#endif            // other requirements.
+// This is required on ESP32 to put the ISR in IRAM. Define as
+// empty for other platforms. Be careful - other platforms may have
+// other requirements.
+#ifndef IRAM_ATTR 
+#define IRAM_ATTR 
+#endif
+
+// Forward declaration of all functions
+void displayState(String currState);
 
 volatile bool newMeasurment = false;
 void IRAM_ATTR NewDataReadyISR() {
@@ -109,6 +115,7 @@ void loop(void) {
 
     // Initial state (or final returned state)
     case measurmentState::IDLE:
+    displayState("IDLE state");  // todo: voeg dit overal toe. mischien ifdef debug?
 
     if((!trottlePermission || tenMinCoolDown) && motorConnected) {
       // todo: disconntectMotor()
@@ -170,16 +177,24 @@ void loop(void) {
     // todo: na te veel tijd geen meting hebben gehad stop met meten zodat de boot weer kan varen en stuur een error. misschien een negative temperatuur als error?
 
     static int16_t i = 0;
-    if(newMeasurment && i <= 80) { // wait until there is an new measurement and stop after ... measurments
+    if(newMeasurment && (i <= 80)) { // wait until there is an new measurement and stop after ... measurments
       newMeasurment = false;       // reset newMeasurement
       measurementRaw = ads.getLastConversionResults();
-      // todo: add measurementRaw to measurmentRawAvg?? float problem? solution first calculate temperture? I don't know
+    #ifdef DEBUG
+    Serial.print(i); Serial.print("\t"); Serial.println(measurementRaw);
+    #endif   
+      // todo: add measurementRaw to measurmentRawAvg?? float problem? solution first calculate temperature = ? I don't know
       i++; // add 1 to the measurement counter
     }
     if(i > 80) {
       i = 0;
       currState = measurmentState::STOPLOAD;
+      #ifdef DEBUG
+      Serial.println(i);
+      #endif   
     }
+
+
 
       break;
 
@@ -196,6 +211,13 @@ void loop(void) {
       break;
 
     case measurmentState::SENDRESULT:
+    // todo: get.avg = measurmentRawAvg;
+
+    motorTemperature = (measurmentRawAvg - referenceVoltage) / referenceVoltage * temperature_coefficient + referenceTemperature
+    Serial.print
+    // todo: send mqtt motorTemperature and measurmentRawAvg
+    // todo: send espnow motorTemperature to fancy display
+    // 
 
       break;
 
@@ -219,4 +241,14 @@ void loop(void) {
   display.print(voltagemV, 3);
   display.display();
   delay(2000);
+}
+
+// Helper routine to track state machine progress
+void displayState(String currState) {
+    static String prevState = "";
+
+    if (currState != prevState) {
+        Serial.println(currState);
+        prevState = currState;
+    }
 }
