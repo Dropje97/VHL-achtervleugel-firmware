@@ -2,6 +2,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "RunningAverage.h"
+#include <esp_now.h>
+#include <WiFi.h>
 
 /*
 ideën:
@@ -48,12 +50,35 @@ bool currentSourceOn = false;    // current for measuring temperature =  of moto
 int16_t measurementRaw = 0;
 float voltagemV = 0;
 
+uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};// todo: replace with MAC Address of your receiver 
+String success; // Variable to store if sending data was successful
+esp_now_peer_info_t peerInfo; // store info of throttle esp
+
 // This is required on ESP32 to put the ISR in IRAM. Define as
 // empty for other platforms. Be careful - other platforms may have
 // other requirements.
 #ifndef IRAM_ATTR 
 #define IRAM_ATTR 
 #endif
+
+// Callback when data is sent
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  if (status ==0){
+    success = "Delivery Success :)";
+  }
+  else{
+    success = "Delivery Fail :(";
+  }
+}
+// Callback when data is received
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+  memcpy(&trottlePermission, incomingData, sizeof(trottlePermission));
+  Serial.print("Bytes received: ");
+  Serial.println(len);
+  
+}
 
 // Forward declaration of all functions
 void displayState(String currState);
@@ -65,6 +90,32 @@ void IRAM_ATTR NewDataReadyISR() {
 void setup(void) {
   Serial.begin(112500);
   Serial.println(F("Hello!"));
+
+  // Set device as a Wi-Fi Station
+  WiFi.mode(WIFI_STA);
+
+  // Init ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+// Once ESPNow is successfully Init, we will register for Send CB to
+  // get the status of Trasnmitted packet
+  esp_now_register_send_cb(OnDataSent);
+
+ // Register peer
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+  
+  // Add peer        
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
+  // Register for a callback function that will be called when data is received
+  esp_now_register_recv_cb(OnDataRecv);
 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -122,6 +173,7 @@ void loop(void) {
       motorConnected = false;
     }
     if((!trottlePermission || tenMinCoolDown) && !motorConnected) {
+      sendMotorState();
       // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is allowed to seal!
     }
     if((!trottlePermission || tenMinCoolDown) && !chargeBattery) {
@@ -241,6 +293,18 @@ void loop(void) {
   display.print(voltagemV, 3);
   display.display();
   delay(2000);
+}
+
+void sendMotorState(){
+  // Send message via ESP-NOW
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &motorConnected, sizeof(motorConnected));
+   
+  if (result == ESP_OK) {
+    Serial.println("Sent with success");
+  }
+  else {
+    Serial.println("Error sending the data");
+  }
 }
 
 // Helper routine to track state machine progress
