@@ -57,7 +57,7 @@ bool currentSourceOn = false;    // current for measuring temperature =  of moto
 int16_t measurementRaw = 0;
 float voltagemV = 0;
 
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};// todo: replace with MAC Address of your receiver 
+uint8_t broadcastAddress[] = {9C:9C:1F:DD:4D:D0};// MAC Address of receiver esp32 (own MAC Address: AC:67:B2:36:B2:D0) 
 String success; // Variable to store if sending data was successful
 esp_now_peer_info_t peerInfo; // store info of throttle esp
 
@@ -72,11 +72,7 @@ esp_now_peer_info_t peerInfo; // store info of throttle esp
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-  if (status ==0){
-    success = "Delivery Success :)";
-  }
-  else{
-    success = "Delivery Fail :(";
+  
   }
 }
 // Callback when data is received
