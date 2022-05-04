@@ -45,7 +45,8 @@ const float referenceTemperature = 20; // temperature when the referenceVoltagem
 const float referenceVoltagemV = 1; // voltage between the motor windings at the referenceTemperature
 const float temperatureCoefficient = 2; // 
 
-float motorTemperature = 0; temperture 
+float motorTemperature = 0; // current calculated temperture ftom the resistance of the motor windings
+float measurmentRawAvg = 0; 
 
 bool trottlePermission = false;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
@@ -268,8 +269,8 @@ void loop(void) {
     case measurmentState::SENDRESULT:
     // todo: get.avg = measurmentRawAvg;
 
-    motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * temperature_coefficient + referenceTemperature
-    Serial.print
+    motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * temperatureCoefficient + referenceTemperature
+    Serial.println(motorTemperature);
     // todo: send mqtt motorTemperature and measurmentRawAvg
     // todo: send espnow motorTemperature to fancy display
     // 
