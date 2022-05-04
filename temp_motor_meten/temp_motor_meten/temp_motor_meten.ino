@@ -5,6 +5,8 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
+//#define DEBUG
+
 /*
 ideën:
 1. voorkom dat de boot niet snel reageert wanneer je bij de stijger aan het manuvreren bent.
@@ -55,10 +57,11 @@ bool tenMinCoolDown = false;     // stop taking measurments after 10min consecut
 bool chargeBattery = false;      // charge battery when in idle 
 bool currentSourceOn = false;    // current for measuring temperature =  of motor
 
+uint32_t tenMinCoolDownTime = millis();
 int16_t measurementRaw = 0;
 float voltagemV = 0;
 
-uint8_t broadcastAddress[] = {9C:9C:1F:DD:4D:D0};// MAC Address of receiver esp32 (own MAC Address: AC:67:B2:36:B2:D0) 
+uint8_t broadcastAddress[] = {0x9C,0x9C,0x1F,0xDD,0x4D,0xD0}; // MAC Address of receiver esp32 (own MAC Address: AC:67:B2:36:B2:D0) 
 String success; // Variable to store if sending data was successful
 esp_now_peer_info_t peerInfo; // store info of throttle esp
 
@@ -74,8 +77,8 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   
-  }
 }
+
 // Callback when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&trottlePermission, incomingData, sizeof(trottlePermission));
@@ -86,6 +89,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
 // Forward declaration of all functions
 void displayState(String currState);
+void sendMotorState();
 
 volatile bool newMeasurment = false;
 void IRAM_ATTR NewDataReadyISR() {
@@ -205,6 +209,7 @@ void loop(void) {
       if(!chargeBattery && !motorConnected) {
         // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is not allowed to seal!
         currState = measurmentState::STARTLOAD;
+      tenMinCoolDownTime = millis(); // reset 10 min cooldown timer
       }
     }
 
@@ -220,10 +225,8 @@ void loop(void) {
     }
     // wait ...ms for current to settle
     if(currentSourceOn) {
-      static uint32_t tenMinCoolDownTime = millis();
       if(millis() - currentSourceOnTime >= currentSourceOnDelay) {
       currState = measurmentState::TAKEMEASUREMENT;
-      tenMinCoolDownTime = millis();
       }
     }
  
@@ -233,7 +236,7 @@ void loop(void) {
     // todo: na te veel tijd geen meting hebben gehad stop met meten zodat de boot weer kan varen en stuur een error. misschien een negative temperatuur als error?
 
     static int16_t i = 0;
-    if(newMeasurment && (i <= 80)) { // wait until there is an new measurement and stop after ... measurments
+    if(newMeasurment && (i <= 1000)) { // wait until there is an new measurement and stop after ... measurments
       newMeasurment = false;       // reset newMeasurement
       measurementRaw = ads.getLastConversionResults();
     #ifdef DEBUG
@@ -269,7 +272,7 @@ void loop(void) {
     case measurmentState::SENDRESULT:
     // todo: get.avg = measurmentRawAvg;
 
-    motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * temperatureCoefficient + referenceTemperature
+    motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * temperatureCoefficient + referenceTemperature;
     Serial.println(motorTemperature);
     // todo: send mqtt motorTemperature and measurmentRawAvg
     // todo: send espnow motorTemperature to fancy display
@@ -279,10 +282,11 @@ void loop(void) {
 
     case measurmentState::COOLDOWN:
 
+
       break;
 
   }
-
+/*
   //measurementcasmeasurementRaw * multiplier;
   Serial.print("Differential: ");
   Serial.print(measurementRaw);
@@ -297,9 +301,10 @@ void loop(void) {
   display.print(voltagemV, 3);
   display.display();
   delay(2000);
+  */
 }
 
-void sendMotorState(){
+void sendMotorState() {
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &motorConnected, sizeof(motorConnected));
    
