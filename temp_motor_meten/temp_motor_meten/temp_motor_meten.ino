@@ -13,6 +13,8 @@ door bv. door alleen te gaan meten wanneer de trottle recentelijk over de 30% is
 3. de schoef moet compleet stil staan anders produceert die zelf stroom als een dynamo.
 */
 
+RunningAverage myRA(80);
+
 #define SCREEN_WIDTH 128  // OLED display width, in pixels
 #define SCREEN_HEIGHT 32  // OLED display height, in pixels
 
@@ -39,6 +41,9 @@ measurmentState currState = measurmentState::IDLE; // Keep track of the current 
 const int8_t READY_PIN = 3; // Pin connected to the ALERT/RDY signal for new sample notification.
 
 const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
+const float referenceTemperature = 20 // temperature when the referenceVoltagemV was measured
+const float referenceVoltagemV = 0 // voltage between the motor windings at the referenceTemperature
+const float temperatureCoefficient = // 
 
 bool trottlePermission = false;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
@@ -265,7 +270,7 @@ void loop(void) {
     case measurmentState::SENDRESULT:
     // todo: get.avg = measurmentRawAvg;
 
-    motorTemperature = (measurmentRawAvg - referenceVoltage) / referenceVoltage * temperature_coefficient + referenceTemperature
+    motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * temperature_coefficient + referenceTemperature
     Serial.print
     // todo: send mqtt motorTemperature and measurmentRawAvg
     // todo: send espnow motorTemperature to fancy display
