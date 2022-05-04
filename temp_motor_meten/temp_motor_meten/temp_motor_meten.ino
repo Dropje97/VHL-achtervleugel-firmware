@@ -41,9 +41,11 @@ measurmentState currState = measurmentState::IDLE; // Keep track of the current 
 const int8_t READY_PIN = 3; // Pin connected to the ALERT/RDY signal for new sample notification.
 
 const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
-const float referenceTemperature = 20 // temperature when the referenceVoltagemV was measured
-const float referenceVoltagemV = 0 // voltage between the motor windings at the referenceTemperature
-const float temperatureCoefficient = // 
+const float referenceTemperature = 20; // temperature when the referenceVoltagemV was measured
+const float referenceVoltagemV = 1; // voltage between the motor windings at the referenceTemperature
+const float temperatureCoefficient = 2; // 
+
+float motorTemperature = 0; temperture 
 
 bool trottlePermission = false;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
