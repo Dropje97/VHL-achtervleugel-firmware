@@ -5,7 +5,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
-//#define DEBUG
+#define DEBUG
 
 /*
 ideën:
@@ -40,7 +40,7 @@ enum class measurmentState : uint8_t {
 };
 measurmentState currState = measurmentState::IDLE; // Keep track of the current State (it's a measurmentState variable)
 
-const int8_t READY_PIN = 3; // Pin connected to the ALERT/RDY signal for new sample notification.
+const int8_t READY_PIN = 13; // Pin connected to the ALERT/RDY signal for new sample notification.
 
 const float multiplier = 0.0078125F; /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
 const float referenceTemperature = 20; // temperature when the referenceVoltagemV was measured
@@ -74,16 +74,16 @@ esp_now_peer_info_t peerInfo; // store info of throttle esp
 
 // Callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  //Serial.print("\r\nLast Packet Send Status:\t");
+  //Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   
 }
 
 // Callback when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&trottlePermission, incomingData, sizeof(trottlePermission));
-  Serial.print("Bytes received: ");
-  Serial.println(len);
+  //Serial.print("Bytes received: ");
+  //Serial.println(len);
   
 }
 
@@ -104,7 +104,7 @@ void setup(void) {
 
   // Init ESP-NOW
   if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
+    //Serial.println("Error initializing ESP-NOW");
     return;
   }
 
@@ -119,7 +119,7 @@ void setup(void) {
   
   // Add peer        
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer");
+    //Serial.println("Failed to add peer");
     return;
   }
   // Register for a callback function that will be called when data is received
@@ -286,7 +286,7 @@ void loop(void) {
       break;
 
   }
-/*
+
   //measurementcasmeasurementRaw * multiplier;
   Serial.print("Differential: ");
   Serial.print(measurementRaw);
@@ -301,19 +301,21 @@ void loop(void) {
   display.print(voltagemV, 3);
   display.display();
   delay(2000);
-  */
+  
 }
 
 void sendMotorState() {
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &motorConnected, sizeof(motorConnected));
    
-  if (result == ESP_OK) {
+ #ifdef DEBUG 
+ /* if (result == ESP_OK) {
     Serial.println("Sent with success");
   }
   else {
     Serial.println("Error sending the data");
-  }
+  } */
+  #endif 
 }
 
 // Helper routine to track state machine progress
