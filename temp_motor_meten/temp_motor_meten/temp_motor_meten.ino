@@ -62,6 +62,7 @@ measurmentState currState = measurmentState::IDLE;  // Keep track of the current
 
 const int8_t READY_PIN = 13;  // Pin connected to the ALERT/RDY signal for new sample notification.
 const int8_t LOAD_PIN = 27; // Pin to turn the 1A load on
+const int8_t motorConnect
 
 const float multiplier = 0.0078125F;     /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
 const float referenceTemperature = 23;   // temperature when the referenceVoltagemV was measured
@@ -72,6 +73,7 @@ float motorTemperature = 0;  // current calculated temperture ftom the resistanc
 float measurmentRawAvg = 0;
 
 char msg_motorTemperature[20];
+char msg_measurmentRawAvg[20];
 
 bool trottlePermission = true;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
@@ -81,6 +83,7 @@ bool chargeBattery = false;    // charge battery when in idle
 bool currentSourceOn = false;  // current for measuring temperature =  of motor
 
 uint32_t tenMinCoolDownTime = millis();
+uint32_t = lastTrottleMsgTime  = millis();
 int16_t measurementRaw = 0;
 float voltagemV = 0;
 
@@ -104,6 +107,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 // Callback when data is received
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   memcpy(&trottlePermission, incomingData, sizeof(trottlePermission));
+  lastTrottleMsgTime = millis();
   //Serial.print("Bytes received: ");
   //Serial.println(len);
 }
@@ -249,6 +253,10 @@ void reconnect() {
 }
 
 void loop(void) {
+  // if there is no communication with the trottle for more than 200ms there is somthing wrong. stop measureing the temperture so we can sail without breaking the sensor.
+  if(millis() - lastTrottleMsgTime => 200) {
+    trottlePermission = false;
+  }
 
    if (!client.connected()) {
     reconnect();
@@ -266,8 +274,7 @@ void loop(void) {
         motorConnected = false;
       }
       if ((!trottlePermission || tenMinCoolDown) && !motorConnected) {
-        sendMotorState();
-        // todo: sendMotorState() (motorConnected true or false) to trottle with ESPNOW The boat is allowed to seal!
+        motorConnected = false; sendMotorState();
       }
       if ((!trottlePermission || tenMinCoolDown) && !chargeBattery) {
         // todo: turnOnBattery()
@@ -355,7 +362,7 @@ void loop(void) {
       if (!currentSourceOn) {
         currState = measurmentState::SENDRESULT;
       }
-8888
+
       break;
 
     case measurmentState::SENDRESULT:
@@ -372,7 +379,9 @@ void loop(void) {
       // todo: send espnow motorTemperature to fancy display
 
       dtostrf(motorTemperature,2,1,msg_motorTemperature);
-          client.publish("esp32/motorTemp", msg_motorTemperature);
+      dtostrf(motorTemperature,2,1,msg_measurmentRawAvg);
+      client.publish("esp32/motorTemp", msg_motorTemperature);
+      client.publish("esp32/motorTemp", msg_measurmentRawAvg);
 
       display.clearDisplay();
       display.setTextSize(1);  // Draw 2X-scale text
@@ -394,8 +403,13 @@ void loop(void) {
 
     case measurmentState::COOLDOWN:
     // todo: add permission check and 10mincooldown
-    if(millis() - currentSourceOnTime > 1000) {
-      currState = measurmentState::STARTLOAD;
+    if(trottlePermission){ 
+      // wait 1 sec after turning the mosfet on before starting the next measurment to prevent overloading and burning the lm317 (voltage/current regulator)
+      if(millis() - currentSourceOnTime > 1000) {
+        currState = measurmentState::STARTLOAD;
+      }
+    } else {
+       currState = measurmentState::IDLE;
     }
       break;
   }
