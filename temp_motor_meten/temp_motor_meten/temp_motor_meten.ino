@@ -4,6 +4,8 @@
 #include "RunningAverage.h"
 #include <esp_now.h>
 #include <WiFi.h>
+#include <PubSubClient.h>
+#include <cstring>
 
 #define DEBUG
 
@@ -14,6 +16,22 @@ door bv. door alleen te gaan meten wanneer de trottle recentelijk over de 30% is
 2. de temp meting mag geen invloed hebben op de noodstop.
 3. de schoef moet compleet stil staan anders produceert die zelf stroom als een dynamo.
 */
+
+// == WiFi Settings ==
+// Replace the next variables with your SSID/Password combination
+const char* ssid = "Zonneboot";
+const char* password = "Zonnepanelen1";
+
+// == MQTT Broker settings ==
+const char* mqtt_server = "telemetrie.zonnebootteam.nl";
+const int mqtt_server_port = 1883;
+const char* mqtt_username = "Zonneboot";
+const char* mqtt_password = "Zonnepanelen1";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+uint32_t lastMsg = 0;
+char msg[50];
 
 RunningAverage myRA(100);
 RunningAverage myRA_min(60);
@@ -46,12 +64,14 @@ const int8_t READY_PIN = 13;  // Pin connected to the ALERT/RDY signal for new s
 const int8_t LOAD_PIN = 27; // Pin to turn the 1A load on
 
 const float multiplier = 0.0078125F;     /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
-const float referenceTemperature = 20;   // temperature when the referenceVoltagemV was measured
-const float referenceVoltagemV = 1;      // voltage between the motor windings at the referenceTemperature
-const float temperatureCoefficient = 2;  //
+const float referenceTemperature = 23;   // temperature when the referenceVoltagemV was measured
+const float referenceVoltagemV = 13.5;      // voltage between the motor windings at the referenceTemperature
+const float temperatureCoefficient = 2.544529;  // graden cel per procent weerstand toename
 
 float motorTemperature = 0;  // current calculated temperture ftom the resistance of the motor windings
 float measurmentRawAvg = 0;
+
+char msg_motorTemperature[20];
 
 bool trottlePermission = true;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
@@ -99,6 +119,10 @@ void IRAM_ATTR NewDataReadyISR() {
 void setup(void) {
   Serial.begin(112500);
   Serial.println(F("Hello!"));
+
+  setup_wifi();
+  client.setServer(mqtt_server, mqtt_server_port);
+  client.setCallback(callback);
 
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
@@ -170,7 +194,66 @@ void setup(void) {
   ads.startADCReading(ADS1X15_REG_CONFIG_MUX_DIFF_0_1, /*continuous=*/true);  // Start continuous conversions.
 }
 
+void setup_wifi() {
+  delay(10);
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+void callback(char* topic, byte* message, unsigned int length) {
+ /*
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
+
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+  Serial.println();
+*/
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("espClient", mqtt_username, mqtt_password)) {
+      Serial.println("connected");
+      // Subscribe
+      client.subscribe("esp32/gps");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
 void loop(void) {
+
+   if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
 
   switch (currState) {
 
@@ -272,7 +355,7 @@ void loop(void) {
       if (!currentSourceOn) {
         currState = measurmentState::SENDRESULT;
       }
-
+8888
       break;
 
     case measurmentState::SENDRESULT:
@@ -283,11 +366,13 @@ void loop(void) {
       minAvg2 = myRA_min.getAverage();
       secAvg = myRA_s.getAverage();
 
-      motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * temperatureCoefficient + referenceTemperature;
+      motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * 100.0 * temperatureCoefficient + referenceTemperature;
       //Serial.println(motorTemperature);
       // todo: send mqtt motorTemperature and measurmentRawAvg
       // todo: send espnow motorTemperature to fancy display
-      //
+
+      dtostrf(motorTemperature,2,1,msg_motorTemperature);
+          client.publish("esp32/motorTemp", msg_motorTemperature);
 
       display.clearDisplay();
       display.setTextSize(1);  // Draw 2X-scale text
