@@ -157,7 +157,7 @@ void setup(void) {
   // ads.setDataRate(RATE_ADS1115_128SPS);  // (0x0080)  128 samples per second (default)
   // ads.setDataRate(RATE_ADS1115_250SPS);  // (0x00A0)  250 samples per second
   // ads.setDataRate(RATE_ADS1115_475SPS);  // (0x00C0)  475 samples per second
-  ads.setDataRate(RATE_ADS1115_860SPS);  // (0x00E0)  860 samples per second  // about 400 samples per second in non continuous mode
+    ads.setDataRate(RATE_ADS1115_860SPS);  // (0x00E0)  860 samples per second  // about 400 samples per second in non continuous mode
 
   if (!ads.begin()) {
     Serial.println(F("Failed to initialize ADS."));
@@ -219,7 +219,7 @@ void loop(void) {
 
     case measurmentState::STARTLOAD:
       static uint32_t currentSourceOnTime = millis();
-      static uint32_t startMeasurementTime = millis();
+      static uint32_t lastMeasurementTime = millis();
       const static int8_t currentSourceOnDelay = 20;  // wait 20ms for current to settle (unsure if 20ms is enough (update 2022: it is enough))
 
       if (!currentSourceOn) {
@@ -231,7 +231,7 @@ void loop(void) {
       if (currentSourceOn) {
         if (millis() - currentSourceOnTime >= currentSourceOnDelay) {
           currState = measurmentState::TAKEMEASUREMENT;
-          startMeasurementTime = millis();
+          lastMeasurementTime = millis();
         }
       }
 
@@ -240,10 +240,9 @@ void loop(void) {
     case measurmentState::TAKEMEASUREMENT:
       // todo: na te veel tijd geen meting hebben gehad stop met meten zodat de boot weer kan varen en stuur een error. misschien een negative temperatuur als error?
 
-      static uint32_t lastMeasurementTime = millis();
-       int16_t  measurementTime = 100;
+      const static int16_t  measurementTime = 100;
       static int16_t i = 0;
-      if (newMeasurment && (millis() - lastMeasurementTime <= measurementTime)) {  // wait until there is an new measurement and stop after ... measurments
+      if (newMeasurment && (millis() - lastMeasurementTime < measurementTime)) {  // wait until there is an new measurement and stop after ... measurments
         newMeasurment = false;             // reset newMeasurement
         measurementRaw = ads.getLastConversionResults();
         myRA.addValue(measurementRaw);
@@ -255,7 +254,7 @@ void loop(void) {
         // todo: add measurementRaw to measurmentRawAvg?? float problem? solution first calculate temperature = ? I don't know
         i++;  // add 1 to the measurement counter
       }
-      if (millis() - lastMeasurementTime > measurementTime) {
+      if (millis() - lastMeasurementTime >= measurementTime) {
         i = 0;
         currState = measurmentState::STOPLOAD;
 #ifdef DEBUG
@@ -279,9 +278,14 @@ void loop(void) {
 
     case measurmentState::SENDRESULT:
       measurmentRawAvg = myRA.getAverage();
-      myRA_min.addValue(measurmentRawAvg);
+      static float measurmentRawStandardDeviation = 0;
+      static float minAvgStandardDeviation = 0;
       static float minAvg2 = 0;
       static float secAvg = 0;
+      
+      measurmentRawStandardDeviation = myRA.getStandardDeviation();
+      myRA_min.addValue(measurmentRawAvg);
+      minAvgStandardDeviation = myRA_min.getStandardDeviation();
       minAvg2 = myRA_min.getAverage();
       secAvg = myRA_s.getAverage();
 
@@ -297,9 +301,9 @@ void loop(void) {
       display.setCursor(0, 0);  // Start at top-left corner
       display.print(measurmentRawAvg*multiplier, 3);
       display.setCursor(0, 12);  // Start at top-left corner
-      display.print(secAvg*multiplier, 3);
+      display.print(measurmentRawStandardDeviation*multiplier, 3);
       display.setCursor(0, 24);
-      display.print(minAvg2*multiplier, 3);
+      display.print(minAvg2*multiplier, 3); display.print(" "); display.print(minAvgStandardDeviation*multiplier, 3);
       display.display();
 
       Serial.println(measurmentRawAvg*multiplier, 3);
