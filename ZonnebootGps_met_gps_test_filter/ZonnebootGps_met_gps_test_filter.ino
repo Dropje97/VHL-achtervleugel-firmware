@@ -146,6 +146,7 @@ void loop() {
   if (GPS.newNMEAreceived()) {
     // a tricky thing here is if we print the NMEA sentence, or data
     // we end up not listening and catching other sentences!
+    
     // so be very wary if using OUTPUT_ALLDATA and trying to print out data
     //Serial.println(GPS.lastNMEA()); // this also sets the newNMEAreceived() flag to false
     if (!GPS.parse(GPS.lastNMEA())) // this also sets the newNMEAreceived() flag to false
@@ -191,9 +192,9 @@ void loop() {
     // == Latitude ==
     char latitudebuf[16];
     double GPSlatitude = GPS.latitude;
-    dtostrf(GPSlatitude, 6, 4, latitudebuf);
+    dtostrf(GPSlatitude, 6, 4, latitudebuf); // todo: test hogere resolutie dtostrf(GPSlatitude, 8, 5, latitudebuf);
     Serial.print("Latitude: ");
-    Serial.println(GPSlatitude, 4);
+    Serial.println(GPSlatitude, 5);
     client.publish("esp32/gps/latitude", latitudebuf);
 
     // == Longitude ==
