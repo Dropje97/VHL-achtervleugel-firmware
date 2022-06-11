@@ -62,7 +62,7 @@ measurmentState currState = measurmentState::IDLE;  // Keep track of the current
 
 const int8_t READY_PIN = 13;  // Pin connected to the ALERT/RDY signal for new sample notification.
 const int8_t LOAD_PIN = 27; // Pin to turn the 1A load on
-const int8_t motorConnect
+const int8_t MOTORCONNECT_PIN = 18 // pin connected to relay for disconnecting the motor from the temp sensor.
 
 const float multiplier = 0.0078125F;     /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
 const float referenceTemperature = 23;   // temperature when the referenceVoltagemV was measured
@@ -373,7 +373,7 @@ void loop(void) {
       minAvg2 = myRA_min.getAverage();
       secAvg = myRA_s.getAverage();
 
-      motorTemperature = (measurmentRawAvg - referenceVoltagemV) / referenceVoltagemV * 100.0 * temperatureCoefficient + referenceTemperature;
+      motorTemperature = (measurmentRawAvg - cableCorrection - referenceVoltagemV) / referenceVoltagemV * 100.0 * temperatureCoefficient + referenceTemperature;
       //Serial.println(motorTemperature);
       // todo: send mqtt motorTemperature and measurmentRawAvg
       // todo: send espnow motorTemperature to fancy display
