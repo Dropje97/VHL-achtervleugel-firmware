@@ -62,12 +62,13 @@ measurmentState currState = measurmentState::IDLE;  // Keep track of the current
 
 const int8_t READY_PIN = 13;  // Pin connected to the ALERT/RDY signal for new sample notification.
 const int8_t LOAD_PIN = 27; // Pin to turn the 1A load on
-const int8_t MOTORCONNECT_PIN = 18 // pin connected to relay for disconnecting the motor from the temp sensor.
+const int8_t MOTORCONNECT_PIN = 18; // pin connected to relay for disconnecting the motor from the temp sensor.
 
 const float multiplier = 0.0078125F;     /* ADS1115  @ +/- +/- 0.256V (16-bit results). Be sure to update this value based on the IC and the gain settings! */
 const float referenceTemperature = 23;   // temperature when the referenceVoltagemV was measured
 const float referenceVoltagemV = 13.5;      // voltage between the motor windings at the referenceTemperature
 const float temperatureCoefficient = 2.544529;  // graden cel per procent weerstand toename
+const float cableCorrectionmV = 0; // correction factor for the resitance in the cables from the motorcontroller to the motor
 
 float motorTemperature = 0;  // current calculated temperture ftom the resistance of the motor windings
 float measurmentRawAvg = 0;
@@ -75,7 +76,7 @@ float measurmentRawAvg = 0;
 char msg_motorTemperature[20];
 char msg_measurmentRawAvg[20];
 
-bool trottlePermission = true;  // permission from trottle to take a measurment
+bool trottlePermission = false;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
 bool motorConnected = false;   // 1A load and ads1115 connected to motor
 bool tenMinCoolDown = false;   // stop taking measurments after 10min consecutively measuring
@@ -83,7 +84,7 @@ bool chargeBattery = false;    // charge battery when in idle
 bool currentSourceOn = false;  // current for measuring temperature =  of motor
 
 uint32_t tenMinCoolDownTime = millis();
-uint32_t = lastTrottleMsgTime  = millis();
+uint32_t lastTrottleMsgTime = millis();
 int16_t measurementRaw = 0;
 float voltagemV = 0;
 
@@ -254,7 +255,7 @@ void reconnect() {
 
 void loop(void) {
   // if there is no communication with the trottle for more than 200ms there is somthing wrong. stop measureing the temperture so we can sail without breaking the sensor.
-  if(millis() - lastTrottleMsgTime => 200) {
+  if(millis() - lastTrottleMsgTime >= 200) {
     trottlePermission = false;
   }
 
@@ -309,6 +310,7 @@ void loop(void) {
 
     case measurmentState::STARTLOAD:
       static uint32_t currentSourceOnTime = millis();
+      static uint32_t lastMeasurementTime = millis();
       const static int8_t currentSourceOnDelay = 100;  // wait 20ms for current to settle (unsure if 20ms is enough)
 
       if (!currentSourceOn) {
@@ -320,6 +322,7 @@ void loop(void) {
       if (currentSourceOn) {
         if (millis() - currentSourceOnTime >= currentSourceOnDelay) {
           currState = measurmentState::TAKEMEASUREMENT;
+          lastMeasurementTime = millis();
         }
       }
 
@@ -328,10 +331,12 @@ void loop(void) {
     case measurmentState::TAKEMEASUREMENT:
       // todo: na te veel tijd geen meting hebben gehad stop met meten zodat de boot weer kan varen en stuur een error. misschien een negative temperatuur als error?
 
+      const static int16_t  measurementTime = 100;
       static int16_t i = 0;
-      if (newMeasurment && (i < 100)) {  // wait until there is an new measurement and stop after ... measurments
+      if (newMeasurment && (millis() - lastMeasurementTime < measurementTime)) {    // wait until there is an new measurement and stop after ... measurments
         newMeasurment = false;             // reset newMeasurement
         measurementRaw = ads.getLastConversionResults();
+        measurementRaw = abs(measurementRaw);
         myRA.addValue(measurementRaw);
 #ifdef DEBUG
         Serial.print(i);
@@ -341,7 +346,7 @@ void loop(void) {
         // todo: add measurementRaw to measurmentRawAvg?? float problem? solution first calculate temperature = ? I don't know
         i++;  // add 1 to the measurement counter
       }
-      if (i >= 100) {
+      if (millis() - lastMeasurementTime >= measurementTime) {
         i = 0;
         currState = measurmentState::STOPLOAD;
 #ifdef DEBUG
@@ -367,13 +372,18 @@ void loop(void) {
 
     case measurmentState::SENDRESULT:
       measurmentRawAvg = myRA.getAverage();
-      myRA_min.addValue(measurmentRawAvg);
+      static float measurmentRawStandardDeviation = 0;
+      static float minAvgStandardDeviation = 0;
       static float minAvg2 = 0;
       static float secAvg = 0;
+
+      measurmentRawStandardDeviation = myRA.getStandardDeviation();
+      myRA_min.addValue(measurmentRawAvg);
+      minAvgStandardDeviation = myRA_min.getStandardDeviation();
       minAvg2 = myRA_min.getAverage();
       secAvg = myRA_s.getAverage();
 
-      motorTemperature = (measurmentRawAvg - cableCorrection - referenceVoltagemV) / referenceVoltagemV * 100.0 * temperatureCoefficient + referenceTemperature;
+      motorTemperature = (measurmentRawAvg - cableCorrectionmV - referenceVoltagemV) / referenceVoltagemV * 100.0 * temperatureCoefficient + referenceTemperature;
       //Serial.println(motorTemperature);
       // todo: send mqtt motorTemperature and measurmentRawAvg
       // todo: send espnow motorTemperature to fancy display
@@ -381,7 +391,7 @@ void loop(void) {
       dtostrf(motorTemperature,2,1,msg_motorTemperature);
       dtostrf(motorTemperature,2,1,msg_measurmentRawAvg);
       client.publish("esp32/motorTemp", msg_motorTemperature);
-      client.publish("esp32/motorTemp", msg_measurmentRawAvg);
+      client.publish("esp32/motormV", msg_measurmentRawAvg);
 
       display.clearDisplay();
       display.setTextSize(1);  // Draw 2X-scale text
@@ -389,12 +399,13 @@ void loop(void) {
       display.setCursor(0, 0);  // Start at top-left corner
       display.print(measurmentRawAvg*multiplier, 3);
       display.setCursor(0, 12);  // Start at top-left corner
-      display.print(secAvg*multiplier, 3);
+      display.print(measurmentRawStandardDeviation*multiplier, 3);
       display.setCursor(0, 24);
-      display.print(minAvg2*multiplier, 3);
+      display.print(minAvg2*multiplier, 3); display.print(" "); display.print(minAvgStandardDeviation*multiplier, 3);
       display.display();
 
       Serial.println(measurmentRawAvg*multiplier, 3);
+
 
       currState = measurmentState::COOLDOWN;
       myRA.clear();
@@ -402,7 +413,7 @@ void loop(void) {
       break;
 
     case measurmentState::COOLDOWN:
-    // todo: add permission check and 10mincooldown
+    // todo: add 10mincooldown
     if(trottlePermission){ 
       // wait 1 sec after turning the mosfet on before starting the next measurment to prevent overloading and burning the lm317 (voltage/current regulator)
       if(millis() - currentSourceOnTime > 1000) {
