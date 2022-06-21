@@ -123,7 +123,7 @@ void IRAM_ATTR NewDataReadyISR() {
 }
 void setup(void) {
   Serial.begin(115200);
-  Serial.println(F("VHL-Areas zonnebootteam"));
+  Serial.println(F("Start setup"));
 
    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -204,6 +204,7 @@ void setup(void) {
   attachInterrupt(digitalPinToInterrupt(READY_PIN), NewDataReadyISR, FALLING);  // We get a falling edge every time a new sample is ready.
 
   ads.startADCReading(ADS1X15_REG_CONFIG_MUX_DIFF_0_1, /*continuous=*/true);  // Start continuous conversions.
+  Serial.println("Sertup done");
 }
 
 void setup_wifi() {
