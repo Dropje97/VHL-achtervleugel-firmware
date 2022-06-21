@@ -122,7 +122,7 @@ void IRAM_ATTR NewDataReadyISR() {
   newMeasurment = true;
 }
 void setup(void) {
-  Serial.begin(112500);
+  Serial.begin(115200);
   Serial.println(F("Hello!"));
 
   setup_wifi();
