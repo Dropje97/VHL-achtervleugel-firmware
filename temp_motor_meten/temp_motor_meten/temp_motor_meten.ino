@@ -123,7 +123,22 @@ void IRAM_ATTR NewDataReadyISR() {
 }
 void setup(void) {
   Serial.begin(115200);
-  Serial.println(F("Hello!"));
+  Serial.println(F("VHL-Areas zonnebootteam"));
+
+   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+  }
+
+  // Clear the buffer
+  display.clearDisplay();
+
+  display.setTextSize(1);  // Draw 2X-scale text
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(0, 0);  // Start at top-left corner
+      
+      display.print("Hello world!");
+      display.display();
 
   setup_wifi();
   client.setServer(mqtt_server, mqtt_server_port);
@@ -154,14 +169,6 @@ void setup(void) {
   }
   // Register for a callback function that will be called when data is received
   esp_now_register_recv_cb(OnDataRecv);
-
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
-  }
-
-  // Clear the buffer
-  display.clearDisplay();
 
   Serial.println(F("Getting differential reading from AIN0 (P) and AIN1 (N)"));
   Serial.println(F("ADC Range: +/- 0.256V (1 bit = 0.0078125mV)"));
@@ -309,6 +316,7 @@ void loop(void) {
       break;
 
     case measurmentState::STARTLOAD:
+     displayState("STARTLOAD state");
       static uint32_t currentSourceOnTime = millis();
       static uint32_t lastMeasurementTime = millis();
       const static int8_t currentSourceOnDelay = 100;  // wait 20ms for current to settle (unsure if 20ms is enough)
@@ -329,6 +337,7 @@ void loop(void) {
       break;
 
     case measurmentState::TAKEMEASUREMENT:
+     displayState("TAKEMEASUREMENT state");
       // todo: na te veel tijd geen meting hebben gehad stop met meten zodat de boot weer kan varen en stuur een error. misschien een negative temperatuur als error?
 
       const static int16_t  measurementTime = 100;
@@ -359,6 +368,7 @@ void loop(void) {
       break;
 
     case measurmentState::STOPLOAD:
+    displayState("STOPLOAD state");
 
       if (currentSourceOn) {
         digitalWrite(LOAD_PIN, LOW);
@@ -371,6 +381,7 @@ void loop(void) {
       break;
 
     case measurmentState::SENDRESULT:
+    displayState("SENDRESULT state");
       measurmentRawAvg = myRA.getAverage();
       static float measurmentRawStandardDeviation = 0;
       static float minAvgStandardDeviation = 0;
@@ -413,6 +424,7 @@ void loop(void) {
       break;
 
     case measurmentState::COOLDOWN:
+    displayState("COOLDOWN state");
     // todo: add 10mincooldown
     if(trottlePermission){ 
       // wait 1 sec after turning the mosfet on before starting the next measurment to prevent overloading and burning the lm317 (voltage/current regulator)
