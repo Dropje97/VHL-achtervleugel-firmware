@@ -76,7 +76,7 @@ float measurmentRawAvg = 0;
 char msg_motorTemperature[20];
 char msg_measurmentRawAvg[20];
 
-bool trottlePermission = false;  // permission from trottle to take a measurment
+bool trottlePermission = true;  // permission from trottle to take a measurment
 bool lastTrottlePermission = trottlePermission;
 bool motorConnected = false;   // 1A load and ads1115 connected to motor
 bool tenMinCoolDown = false;   // stop taking measurments after 10min consecutively measuring
@@ -137,7 +137,7 @@ void setup(void) {
       display.setTextColor(SSD1306_WHITE);
       display.setCursor(0, 0);  // Start at top-left corner
       
-      display.print("Hello world!");
+      display.print("VHL-Areas zonnebootteam");
       display.display();
 
   setup_wifi();
@@ -263,7 +263,7 @@ void reconnect() {
 void loop(void) {
   // if there is no communication with the trottle for more than 200ms there is somthing wrong. stop measureing the temperture so we can sail without breaking the sensor.
   if(millis() - lastTrottleMsgTime >= 200) {
-    trottlePermission = false;
+   // trottlePermission = false;
   }
 
    if (!client.connected()) {
