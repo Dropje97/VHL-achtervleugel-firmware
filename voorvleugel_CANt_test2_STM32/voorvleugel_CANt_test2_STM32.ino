@@ -452,15 +452,15 @@ void loop() {
     */
 
 
-    Serial.print(overcurrent_limit);
+  /*  Serial.print(overcurrent_limit);
     Serial.print(" - ");
     Serial.print(amps_rechts);
     Serial.print(" - ");
     Serial.print(CAN_setpoint_pulsen);
     Serial.print(" - ");
-    Serial.print(encoder_pulsen_rechts);
-    Serial.print(" - ");
-    Serial.println(PWM_rechts);
+   */ Serial.println(encoder_pulsen_rechts);
+   // Serial.print(" - ");
+   // Serial.println(PWM_rechts);
 
 
     /*
@@ -606,19 +606,19 @@ void send_CAN_current() {
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
-    Serial.print("CAN frame id: ");
-    Serial.println(canMsg.can_id);
+  //  Serial.print("CAN frame id: ");
+  //  Serial.println(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
-      Serial.print("CAN frame setpulsen: ");
+  //    Serial.print("CAN frame setpulsen: ");
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[0], canMsg.data[1]);  //byte 0-1 is int16_t pulsen voor
-      Serial.println(CAN_setpoint_pulsen);
+  //    Serial.println(CAN_setpoint_pulsen);
       CAN_offset_pulsen = int16_from_can(canMsg.data[2], canMsg.data[3]);  //byte 2-3 is int16_t pulsen offset
       CAN_offset_pulsen = constrain(CAN_offset_pulsen, -4190, 4190);
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
-      Serial.print("CAN frame homing: ");
-      Serial.println(homeing);
+   //   Serial.print("CAN frame homing: ");
+    //  Serial.println(homeing);
     }
 
   }
