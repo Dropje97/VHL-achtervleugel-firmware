@@ -170,6 +170,22 @@ void setup(void) {
   // Register for a callback function that will be called when data is received
   esp_now_register_recv_cb(OnDataRecv);
 
+<<<<<<< Updated upstream
+=======
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+  }
+
+  // Clear the display buffer
+  display.clearDisplay();
+  
+      display.setTextSize(2);  // Draw 2X-scale text
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(0, 0);  // Start at top-left corner
+      display.print("Hello!");
+
+>>>>>>> Stashed changes
   Serial.println(F("Getting differential reading from AIN0 (P) and AIN1 (N)"));
   Serial.println(F("ADC Range: +/- 0.256V (1 bit = 0.0078125mV)"));
 
@@ -204,7 +220,11 @@ void setup(void) {
   attachInterrupt(digitalPinToInterrupt(READY_PIN), NewDataReadyISR, FALLING);  // We get a falling edge every time a new sample is ready.
 
   ads.startADCReading(ADS1X15_REG_CONFIG_MUX_DIFF_0_1, /*continuous=*/true);  // Start continuous conversions.
+<<<<<<< Updated upstream
   Serial.println("Sertup done");
+=======
+Serial.println("setup done");
+>>>>>>> Stashed changes
 }
 
 void setup_wifi() {
