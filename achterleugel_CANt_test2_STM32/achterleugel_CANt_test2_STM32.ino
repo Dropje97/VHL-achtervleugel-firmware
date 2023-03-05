@@ -2,7 +2,7 @@
 #include "can.h"
 #include "mcp2515.h"
 
-//#define HOME_DEBUG
+#define HOME_DEBUG
 
 MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(7, 8, 9, 6, A1, 7, 8, 10, 6, A1);
@@ -18,12 +18,12 @@ const int8_t kd = 0;
 const int16_t max_pulsen = 1872;             // 156 pulsen per rotatie * 12 max rotaties vanaf home = 1872 pulsen in totaal (m4 is 0,7mm per rotatie dus 8,4mm totaal).
 const int16_t start_PWM = 80;                // de motor begint direct te draaien op de startwaarde of langzamer als er minder gas nodig is, daana neemt de smoothing het over.
 const uint8_t smoothing_time = 20;           // tijd in millis tussen het verhogen van het PWM van de motor zodat deze rustig versneld. hogere waarde is langzamer versnellen.
-const uint8_t amps_poll_interval = 1;        // tijd tussen de metingen van het stroomverbuik.
+const uint8_t amps_poll_interval = 1;        // tijd tussen de metingen van het stroomverbruik.
 const uint8_t serial_print_interval = 50;    // tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
 const uint8_t CAN_send_interval = 10;        // de CAN berichten worden 100x per seconden verzonden.
-const uint16_t CAN_read_interval = 50;     // de CAN berichten worden 1000x per seconden ontvangen.
+const uint16_t CAN_read_interval = 50;       // de CAN berichten worden 20x per seconden ontvangen. vanwege problemen met het genereren van de PWM voor de motor tijdens het lezen van de CAN lezen er de CAN minder vaak
 
 const uint16_t CAN_ID = 50;               // CAN ID van setpoint_PWM
 const uint16_t CAN_ID_amps_achter = 250;  // CAN ID van CAN_ID_amps_achter
@@ -388,6 +388,8 @@ void send_CAN_current() {
   //  return ret; //return the frame
   mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
 }
+
+void send_CAN_
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
