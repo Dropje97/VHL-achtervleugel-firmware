@@ -22,12 +22,8 @@ const uint8_t amps_poll_interval = 1;        // tijd tussen de metingen van het 
 const uint8_t serial_print_interval = 50;    // tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
-const uint8_t CAN_send_interval = 10;        // de CAN berichten worden 100x per seconden verzonden.
+const uint8_t CAN_send_interval = 450;        // de CAN berichten worden 100x per seconden verzonden.
 const uint16_t CAN_read_interval = 50;       // de CAN berichten worden 20x per seconden ontvangen. vanwege problemen met het genereren van de PWM voor de motor tijdens het lezen van de CAN lezen er de CAN minder vaak
-
-const uint16_t CAN_ID = 50;               // CAN ID van setpoint_PWM
-const uint16_t CAN_ID_amps_achter = 250;  // CAN ID van CAN_ID_amps_achter
-const uint16_t CAN_ID_home_achter = 300;  // CAN ID van home_achter
 
 volatile int encoder_pulsen = 0;
 volatile int encoder_pulsen_prev = encoder_pulsen;
@@ -93,7 +89,7 @@ void setup() {
   // Atach a CHANGE interrupt to PinB and exectute the update function when this change occurs.
   attachInterrupt(digitalPinToInterrupt(pinA), encoderA_ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinB), encoderB_ISR, CHANGE);
-/*  md.setM2Speed(200);
+  /*  md.setM2Speed(200);
   delay(1000);
   md.setM2Speed(-200);
   delay(1000);
@@ -132,19 +128,13 @@ void encoderA_ISR() {
 
 void loop() {
   timer = millis();
-  //======================= lees potmeter ==================================
-  /*
-    pot_val = 0.05 * analogRead(pot_pin) + 0.95 * pot_val;
-    // setpoint_PWM = map(pot_val, 0, 1023, -400, 400);
-    setpoint_pulsen = map(pot_val, 0, 1023, -400, 400);
-  */
 
   //====================== smoothing acceleratie + debug ======================================
 
   if (homeing) {
     home();
     setpoint_PWM = setpoint_home_PWM;
-  } else if (has_homed){
+  } else if (has_homed) {
     setpoint_PWM = setpoint_PID_PWM;
   }
 
@@ -201,7 +191,7 @@ void loop() {
     last_amps_poll = timer;
     amps = amps * 0.96 + md.getM2CurrentMilliamps() * 0.04;
 
-    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 3000; // was +1000
+    overcurrent_limit = (-3.8137 * PWM * PWM + 2456.2 * abs(PWM) + 159013) * 0.001 + 3000;  // was +1000
     if (amps > overcurrent_limit) {
       overcurrent = true;
       md.setM2Brake(400);
@@ -231,8 +221,7 @@ void loop() {
     md.setM2Brake(400);
     overcurrent = false;
   } else if (overcurrent == false) {
-    setspeed();
-    //  Serial.println("setspeed");
+    md.setM2Speed(PWM);
   }
 
   //==================================== PID compute ===============================
@@ -263,7 +252,7 @@ void loop() {
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
 
-  //  Serial.println(encoder_pulsen);
+    //  Serial.println(encoder_pulsen);
     /*
     Serial.print(overcurrent_limit);
     Serial.print(" - ");
@@ -306,96 +295,62 @@ void loop() {
     */
   }
 
+  void home() {
+    const static uint8_t min_home_time = 1000;
+    static uint32_t last_home_time = timer;
+
+    if (setpoint_home_PWM == 0) {  // als het homen nog niet begonnen is
+#ifdef HOME_DEBUG
+      Serial.println("Start homing");
+#endif
+      setpoint_home_PWM = -400;                            // begin met homen
+      last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
+    } else if (timer - last_home_time >= min_home_time) {  // wacht 1000ms zodat amps niet meer 0 is door het filter.
+      if (amps < 100) {                                    // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
+#ifdef HOME_DEBUG
+        Serial.print("mili amps: ");
+        Serial.println(amps);
+#endif
+        delay(500);             // wacht 500ms zodat de motor stil staat.
+        encoder_pulsen = -156;  // reset de pulsen.
+        setpoint_pulsen = 0;    // reset het setpoint.
+        setpoint_home_PWM = 0;  // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
+                                //  CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
+        I = 0;                  // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
+        setpoint_PID_PWM = 0;   // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
+        amps = 0;               // zet het stroomsterkte filter weer op 0.
+        overcurrent = false;    // overcurrent is false na het homen zodat de motor weer kan draaien.
+        homeing = false;        // homen is klaar.
+        has_homed = true;
+#ifdef HOME_DEBUG
+        Serial.println("homed");
+#endif
+        delay(4000);
+      }
+    }
+  }
+
   //============================================== send/read can data ===========================================================================
 
-  //=========================== send_CAN_setpoint_PWM
-  //send_CAN_setpoint_PWM();
-
-  //========================= send current
-  //  send_CAN_current();
-
+  if (timer - last_CAN_send >= CAN_send_interval) {
+    last_CAN_send = timer;
+    int16_t_to_frame(PWM, (int16_t)amps, (int16_t)has_homed, 0, 50);  // send CAN
+  }
   //========================= read CAN
   if (timer - last_CAN_read >= CAN_read_interval) {
     last_CAN_read = timer;
-    
+
     read_CAN_data();
     read_CAN_data();
     read_CAN_data();
   }
 }
-void setspeed() {
-  md.setM2Speed(PWM);
-  // md.setM2Speed(200);
-  // Serial.println("void setspeed");
-}
-
-void home() {
-  const static uint8_t min_home_time = 1000;
-  static uint32_t last_home_time = timer;
-
-  if (setpoint_home_PWM == 0) {  // als het homen nog niet begonnen is
-#ifdef HOME_DEBUG
-    Serial.println("Start homing");
-#endif
-    setpoint_home_PWM = -400;                            // begin met homen
-    last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
-  } else if (timer - last_home_time >= min_home_time) {  // wacht 1000ms zodat amps niet meer 0 is door het filter.
-    if (amps < 100) {                                    // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
-#ifdef HOME_DEBUG
-      Serial.print("mili amps: ");
-      Serial.println(amps);
-#endif
-      delay(500);               // wacht 500ms zodat de motor stil staat.
-      encoder_pulsen = -156;       // reset de pulsen.
-      setpoint_pulsen = 0;      // reset het setpoint.
-      setpoint_home_PWM = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-    //  CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
-      I = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
-      setpoint_PID_PWM = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
-      amps = 0;                 // zet het stroomsterkte filter weer op 0.
-      overcurrent = false;      // overcurrent is false na het homen zodat de motor weer kan draaien.
-      homeing = false;          // homen is klaar.
-      has_homed = true;
-#ifdef HOME_DEBUG
-      Serial.println("homed");
-#endif
-   delay(4000); 
-    }
-  }
-  
-}
-
-void send_CAN_setpoint_PWM() {
-  byte bytes[sizeof(int16_t)];                     //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &setpoint_PWM, sizeof(int16_t));   // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  for (uint8_t i = 0; i < sizeof(int16_t); i++) {  //basic counter
-    ret.data[i] = bytes[i];                        //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = CAN_ID;            //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(int16_t);  //set the dlc to the size of our data type (int16)
-  //  return ret; //return the frame
-  mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
-}
-
-void send_CAN_current() {
-  byte bytes[sizeof(uint16_t)];                     //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &amps, sizeof(uint16_t));           // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  for (uint8_t i = 0; i < sizeof(uint16_t); i++) {  //basic counter
-    ret.data[i] = bytes[i];                         //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = CAN_ID;             //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(uint16_t);  //set the dlc to the size of our data type (int16)
-  //  return ret; //return the frame
-  mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
-}
-
-void send_CAN_
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
     Serial.print("CAN frame id: ");
     Serial.println(canMsg.can_id);
-    if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
+    if (canMsg.can_id == 0xC8) {  //is can msg ID is 200 in hex
       Serial.print("CAN frame setpulsen: ");
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
       Serial.println(CAN_setpoint_pulsen);
@@ -405,26 +360,28 @@ void read_CAN_data() {
       Serial.print("CAN frame homing: ");
       Serial.println(homeing);
     }
-
   }
 }
-/*
-  can_frame int_to_frame(int16_t i16, uint16_t can_id) {
-  byte bytes[sizeof(int16_t)]; //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &i16, sizeof(int16_t)); // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  can_frame ret; //make a frame called "ret"
-  for (uint8_t i = 0; i < sizeof(int16_t); i++) { //basic counter
-    ret.data[i] = bytes[i]; //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = can_id; //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(int16_t); //set the dlc to the size of our data type (int16)
-  return ret; //return the frame
-  }
-*/
 
 int16_t int16_from_can(uint8_t b1, uint8_t b2) {
   // maakt van twee bytes een int16_t
   int16_t ret;
   ret = b1 | (int16_t)b2 << 8;
   return ret;
+}
+
+can_frame int16_t_to_frame(int16_t i16_1, int16_t i16_2, int16_t i16_3, int16_t i16_4, uint16_t can_id) {
+  byte bytes[sizeof(int16_t) * 4];                               // make an array and reserve the size of the datatype we want to send
+  memcpy(bytes, &i16_1, sizeof(int16_t));                        // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  memcpy(bytes + sizeof(int16_t), &i16_2, sizeof(int16_t));      // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  memcpy(bytes + sizeof(int16_t) * 2, &i16_3, sizeof(int16_t));  // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  memcpy(bytes + sizeof(int16_t) * 3, &i16_4, sizeof(int16_t));  // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  can_frame ret;                                                 // make a frame called "ret"
+  for (uint8_t i = 0; i < sizeof(int16_t) * 4; i++) {            // basic counter
+    ret.data[i] = bytes[i];                                      // copy the data from bytes to their respective location in ret.bytes
+  }                                                              //
+  ret.can_id = can_id;                                           // set the can id of "ret" to our can id
+  ret.can_dlc = sizeof(int16_t) * 4;                             // set the dlc to the size of our data type (int16)
+  mcp2515.sendMessage(&ret);                                     // send the frame
+  return ret;                                                    // return the frame
 }
