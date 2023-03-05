@@ -22,7 +22,7 @@ const uint8_t amps_poll_interval = 1;        // tijd tussen de metingen van het 
 const uint8_t serial_print_interval = 50;    // tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
-const uint8_t CAN_send_interval = 450;        // de CAN berichten worden 100x per seconden verzonden.
+const uint16_t CAN_send_interval = 450;      // de CAN berichten worden 100x per seconden verzonden.
 const uint16_t CAN_read_interval = 50;       // de CAN berichten worden 20x per seconden ontvangen. vanwege problemen met het genereren van de PWM voor de motor tijdens het lezen van de CAN lezen er de CAN minder vaak
 
 volatile int encoder_pulsen = 0;
@@ -59,8 +59,6 @@ int32_t I = 0;
 float D = 0;
 int32_t PID = 0;
 
-int16_t i16;
-
 bool overcurrent = false;
 bool direction_change = false;
 bool direction = 1;  // 0= negatief 1=positief
@@ -89,11 +87,6 @@ void setup() {
   // Atach a CHANGE interrupt to PinB and exectute the update function when this change occurs.
   attachInterrupt(digitalPinToInterrupt(pinA), encoderA_ISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinB), encoderB_ISR, CHANGE);
-  /*  md.setM2Speed(200);
-  delay(1000);
-  md.setM2Speed(-200);
-  delay(1000);
-*/
 }
 
 void encoderB_ISR() {
@@ -248,6 +241,19 @@ void loop() {
     setpoint_PID_PWM = PID;
   }
 
+  if (timer - last_CAN_send >= CAN_send_interval) {
+    last_CAN_send = timer;
+    int16_t_to_frame(PWM, (int16_t)amps, (int16_t)has_homed, 0, 50);  // send CAN
+  }
+  //========================= read CAN
+  if (timer - last_CAN_read >= CAN_read_interval) {
+    last_CAN_read = timer;
+
+    read_CAN_data();
+    read_CAN_data();
+    read_CAN_data();
+  }
+
   //============================================================SerialPrints============================================
   if (timer - last_serial_print >= serial_print_interval) {
     last_serial_print = timer;
@@ -294,57 +300,44 @@ void loop() {
       Serial.println(overcurrent_limit);
     */
   }
+}
 
-  void home() {
-    const static uint8_t min_home_time = 1000;
-    static uint32_t last_home_time = timer;
+void home() {
+  const static uint16_t min_home_time = 1000;
+  static uint32_t last_home_time = timer;
 
-    if (setpoint_home_PWM == 0) {  // als het homen nog niet begonnen is
+  if (setpoint_home_PWM == 0) {  // als het homen nog niet begonnen is
 #ifdef HOME_DEBUG
-      Serial.println("Start homing");
+    Serial.println("Start homing");
 #endif
-      setpoint_home_PWM = -400;                            // begin met homen
-      last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
-    } else if (timer - last_home_time >= min_home_time) {  // wacht 1000ms zodat amps niet meer 0 is door het filter.
-      if (amps < 100) {                                    // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
+    setpoint_home_PWM = -400;                            // begin met homen
+    last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
+  } else if (timer - last_home_time >= min_home_time) {  // wacht 1000ms zodat amps niet meer 0 is door het filter.
+    if (amps < 100) {                                    // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
 #ifdef HOME_DEBUG
-        Serial.print("mili amps: ");
-        Serial.println(amps);
+      Serial.print("mili amps: ");
+      Serial.println(amps);
 #endif
-        delay(500);             // wacht 500ms zodat de motor stil staat.
-        encoder_pulsen = -156;  // reset de pulsen.
-        setpoint_pulsen = 0;    // reset het setpoint.
-        setpoint_home_PWM = 0;  // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-                                //  CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
-        I = 0;                  // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
-        setpoint_PID_PWM = 0;   // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
-        amps = 0;               // zet het stroomsterkte filter weer op 0.
-        overcurrent = false;    // overcurrent is false na het homen zodat de motor weer kan draaien.
-        homeing = false;        // homen is klaar.
-        has_homed = true;
+      delay(500);             // wacht 500ms zodat de motor stil staat.
+      encoder_pulsen = -156;  // reset de pulsen.
+      setpoint_pulsen = 0;    // reset het setpoint.
+      setpoint_home_PWM = 0;  // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
+                              //  CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
+      I = 0;                  // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
+      setpoint_PID_PWM = 0;   // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
+      amps = 0;               // zet het stroomsterkte filter weer op 0.
+      overcurrent = false;    // overcurrent is false na het homen zodat de motor weer kan draaien.
+      homeing = false;        // homen is klaar.
+      has_homed = true;
 #ifdef HOME_DEBUG
-        Serial.println("homed");
+      Serial.println("homed");
 #endif
-        delay(4000);
-      }
+      delay(4000);
     }
   }
-
-  //============================================== send/read can data ===========================================================================
-
-  if (timer - last_CAN_send >= CAN_send_interval) {
-    last_CAN_send = timer;
-    int16_t_to_frame(PWM, (int16_t)amps, (int16_t)has_homed, 0, 50);  // send CAN
-  }
-  //========================= read CAN
-  if (timer - last_CAN_read >= CAN_read_interval) {
-    last_CAN_read = timer;
-
-    read_CAN_data();
-    read_CAN_data();
-    read_CAN_data();
-  }
 }
+
+//============================================== read can data ===========================================================================
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
