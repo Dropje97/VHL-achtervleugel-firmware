@@ -554,14 +554,14 @@ void home() {
           setpoint_home_PWM_rechts = -200;                           // begin met homen
           last_home_time = timer;
         } else { */
-      encoder_pulsen_links = -50;       // reset de pulsen.
+      encoder_pulsen_links = -34;       // reset de pulsen.
       setpoint_pulsen_links = 0;      // reset het setpoint.
       setpoint_home_PWM_links = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
       I_links = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
       setpoint_PID_PWM_links = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
       amps_links = 0;                 // zet het stroomsterkte filter weer op 0.
 
-      encoder_pulsen_rechts = -10;       // reset de pulsen.
+      encoder_pulsen_rechts = -7;       // reset de pulsen.
       setpoint_pulsen_rechts = 0;      // reset het setpoint.
       setpoint_home_PWM_rechts = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
       I_rechts = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
