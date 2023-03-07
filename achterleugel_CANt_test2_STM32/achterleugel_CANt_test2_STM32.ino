@@ -350,6 +350,7 @@ void read_CAN_data() {
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
+      has_homed = false;
       Serial.print("CAN frame homing: ");
       Serial.println(homeing);
     }
