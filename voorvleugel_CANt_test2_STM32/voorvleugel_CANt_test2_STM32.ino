@@ -8,8 +8,8 @@ MCP2515 mcp2515(PB12);  //compleet willekeurige pin want ER WAS NOG GEEN PIN
 DualVNH5019MotorShield md(2, 4, 9, 6, A0, 7, 8, 10, 6, A1);
 
 //const uint8_t pot_pin = A2;
-const uint8_t pinA_links = PB1;  // Rotary encoder links Pin A
-const uint8_t pinB_links = PB2;  // Rotary encoder links Pin B
+const uint8_t pinA_links = PB1;   // Rotary encoder links Pin A
+const uint8_t pinB_links = PB2;   // Rotary encoder links Pin B
 const uint8_t pinA_rechts = PB3;  // Rotary encoder 2 rechts Pin A
 const uint8_t pinB_rechts = PB4;  // Rotary encoder 2 rechts Pin B
 
@@ -17,19 +17,15 @@ const int8_t kp = 10;  // pid instellingen
 const float ki = 0.1;
 const int8_t kd = 0;
 
-const int16_t max_pulsen = 17500;             // 156 pulsen per rotatie * 12 max rotaties vanaf home = 1872 pulsen in totaal (m4 is 0,7mm per rotatie dus 8,4mm totaal).
-const int16_t start_PWM = 150;                // de motor begint direct te draaien op de startwaarde of langzamer als er minder gas nodig is, daana neemt de smoothing het over.
-const uint8_t smoothing_time = 5;           // tijd in millis tussen het verhogen van het PWM van de motor zodat deze rustig versneld. hogere waarde is langzamer versnellen.
+const int16_t max_pulsen = 17500;            // 156 pulsen per rotatie * 12 max rotaties vanaf home = 1872 pulsen in totaal (m4 is 0,7mm per rotatie dus 8,4mm totaal).
+const int16_t start_PWM = 150;               // de motor begint direct te draaien op de startwaarde of langzamer als er minder gas nodig is, daana neemt de smoothing het over.
+const uint8_t smoothing_time = 5;            // tijd in millis tussen het verhogen van het PWM van de motor zodat deze rustig versneld. hogere waarde is langzamer versnellen.
 const uint8_t amps_poll_interval = 1;        // tijd tussen de metingen van het stroomverbuik.
-const uint8_t serial_print_interval = 100;    // tijd tussen de serial prints.
+const uint8_t serial_print_interval = 100;   // tijd tussen de serial prints.
 const uint8_t direction_change_delay = 200;  // tijd die de motor om de rem staat wanneer die van richting verandert.
 const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID berekend. het veranderen van deze waarde heeft invloed op de I en D hou daar rekening mee.
-const uint16_t CAN_read_interval = 50;     // de CAN berichten worden 1000x per seconden ontvangen.
-const uint16_t CAN_send_PWM_interval = 100; // PWM CAN berichten 10x per seconden verzenden
-
-const uint16_t CAN_ID = 51;               // CAN ID van setpoint_PWM
-const uint16_t CAN_ID_amps_achter = 250;  // CAN ID van CAN_ID_amps_achter
-const uint16_t CAN_ID_home_achter = 300;  // CAN ID van home_achter
+const uint16_t CAN_read_interval = 50;       // de CAN berichten worden 20x per seconden ontvangen.
+const uint16_t CAN_send_interval = 100;      // PWM CAN berichten 10x per seconden verzenden
 
 volatile int encoder_pulsen_links = 0;
 volatile int encoder_pulsen_rechts = 0;
@@ -53,7 +49,7 @@ uint32_t last_PID_rechts = 0;
 uint32_t last_amps_poll = 0;
 uint32_t last_serial_print = 0;
 uint32_t last_CAN_read = 0;
-uint32_t last_CAN_send_PWM =0;
+uint32_t last_CAN_send = 0;
 uint32_t timer = millis();  // wordt gelijk gesteld aan millis zodat millis niet elke keer opgevraagd wordt want dat kost veel cpu tijd
 
 int32_t smoothing_PWM_links = 0;  //
@@ -121,8 +117,8 @@ void setup() {
   mcp2515.setNormalMode();
 
   //  pinMode(pot_pin, INPUT);
-  pinMode(pinA_links, INPUT_PULLUP);  // Set Pin_A as input
-  pinMode(pinB_links, INPUT_PULLUP);  // Set Pin_B as input
+  pinMode(pinA_links, INPUT_PULLUP);   // Set Pin_A as input
+  pinMode(pinB_links, INPUT_PULLUP);   // Set Pin_B as input
   pinMode(pinA_rechts, INPUT_PULLUP);  // Set Pin_A as input
   pinMode(pinB_rechts, INPUT_PULLUP);  // Set Pin_B as input
 
@@ -202,12 +198,6 @@ void encoderA_rechts_ISR() {
 
 void loop() {
   timer = millis();
-  //======================= lees potmeter ==================================
-  /*
-    pot_val = 0.05 * analogRead(pot_pin) + 0.95 * pot_val;
-    // setpoint_PWM_links = map(pot_val, 0, 1023, -400, 400);
-    setpoint_pulsen_links = map(pot_val, 0, 1023, -400, 400);
-  */
 
   //====================== smoothing acceleratie + debug ======================================
 
@@ -410,8 +400,8 @@ void loop() {
 
     // =========================== rechts
 
-    
- setpoint_pulsen_rechts = CAN_setpoint_pulsen + CAN_offset_pulsen;
+
+    setpoint_pulsen_rechts = CAN_setpoint_pulsen + CAN_offset_pulsen;
     setpoint_pulsen_rechts = constrain(setpoint_pulsen_rechts, 0, max_pulsen);
 
     error_rechts = setpoint_pulsen_rechts - encoder_pulsen_rechts;
@@ -452,15 +442,16 @@ void loop() {
     */
 
 
-  /*  Serial.print(overcurrent_limit);
+    /*  Serial.print(overcurrent_limit);
     Serial.print(" - ");
     Serial.print(amps_rechts);
     Serial.print(" - ");
     Serial.print(CAN_setpoint_pulsen);
     Serial.print(" - ");
-   */ Serial.println(encoder_pulsen_rechts);
-   // Serial.print(" - ");
-   // Serial.println(PWM_rechts);
+   */
+    Serial.println(encoder_pulsen_rechts);
+    // Serial.print(" - ");
+    // Serial.println(PWM_rechts);
 
 
     /*
@@ -498,14 +489,12 @@ void loop() {
 
   //============================================== send/read can data ===========================================================================
 
-  //=========================== send_CAN_setpoint_PWM
-  if (timer - last_CAN_send_PWM > CAN_send_PWM_interval){
-  last_CAN_send_PWM = timer;
-  send_CAN_setpoint_PWM();
+  //=========================== send_CAN_
+  if (timer - last_CAN_send > CAN_send_interval) {
+    last_CAN_send = timer;
+    int16_t_to_frame(PWM_links, PWM_rechts, (int16_t)has_homed, 0, 51);     // send CAN
+    int16_t_to_frame((int16_t)amps_links, (int16_t)amps_rechts, 0, 0, 52);  // send CAN
   }
-
-  //========================= send current
-  //  send_CAN_current();
 
   //========================= read CAN
   if (timer - last_CAN_read >= CAN_read_interval) {
@@ -526,8 +515,8 @@ void home() {
     Serial.println("Start homing");
 #endif
     overcurrent = false;
-    setpoint_home_PWM_links = -400;                            // begin met homen
-    setpoint_home_PWM_rechts = -400;                           // begin met homen
+    setpoint_home_PWM_links = -400;                      // begin met homen
+    setpoint_home_PWM_rechts = -400;                     // begin met homen
     last_home_time = timer;                              // reset last_home_time zodat de 100ms van mnin_home_time nu in gaat
   } else if (timer - last_home_time >= min_home_time) {  // wacht 5000ms zodat amps niet meer 0 is door het filter.
     if ((amps_links < 300) && (amps_rechts < 300)) {     // als het stroom verbruik onder de 100mA is dan is de overcurrent getriggered en is de vleugel op zijn minimale stand.
@@ -537,7 +526,7 @@ void home() {
       Serial.print F(("mili amps rechts: "));
       Serial.println(amps_rechts);
 #endif
-      delay(500);               // wacht 500ms zodat de motor stil staat.
+      delay(500);  // wacht 500ms zodat de motor stil staat.
       /*  if ((setpoint_home_PWM_links == -400) && (setpoint_home_PWM_rechts == -400)) {
         #ifdef HOME_DEBUG
           Serial.println F(("snel homen klaar"));
@@ -554,20 +543,20 @@ void home() {
           setpoint_home_PWM_rechts = -200;                           // begin met homen
           last_home_time = timer;
         } else { */
-      encoder_pulsen_links = -34;       // reset de pulsen.
-      setpoint_pulsen_links = 0;      // reset het setpoint.
-      setpoint_home_PWM_links = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-      I_links = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
-      setpoint_PID_PWM_links = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
-      amps_links = 0;                 // zet het stroomsterkte filter weer op 0.
+      encoder_pulsen_links = -34;   // reset de pulsen.
+      setpoint_pulsen_links = 0;    // reset het setpoint.
+      setpoint_home_PWM_links = 0;  // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
+      I_links = 0;                  // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
+      setpoint_PID_PWM_links = 0;   // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
+      amps_links = 0;               // zet het stroomsterkte filter weer op 0.
 
-      encoder_pulsen_rechts = -7;       // reset de pulsen.
-      setpoint_pulsen_rechts = 0;      // reset het setpoint.
-      setpoint_home_PWM_rechts = 0;    // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
-      I_rechts = 0;                    // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
-      setpoint_PID_PWM_rechts = 0;     // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
+      encoder_pulsen_rechts = -7;    // reset de pulsen.
+      setpoint_pulsen_rechts = 0;    // reset het setpoint.
+      setpoint_home_PWM_rechts = 0;  // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
+      I_rechts = 0;                  // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
+      setpoint_PID_PWM_rechts = 0;   // zet de PID_PWM op 0 zodat de motor niet spontaan begint te draaien.
 
-      amps_rechts = 0;                 // zet het stroomsterkte filter weer op 0.
+      amps_rechts = 0;          // zet het stroomsterkte filter weer op 0.
       CAN_setpoint_pulsen = 0;  // zet CAN_setpoin_pulsen op 0 zodat de vleugel niet direct terug gaat naar de vorige positie maar op het CAN bericht wacht.
       overcurrent = false;      // overcurrent is false na het homen zodat de motor weer kan draaien.
       homeing = false;          // homen is klaar.
@@ -575,71 +564,51 @@ void home() {
 #ifdef HOME_DEBUG
       Serial.println("homed");
 #endif
-
     }
   }
 }
 
-void send_CAN_setpoint_PWM() {
-  byte bytes[sizeof(int16_t)];                     //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &setpoint_PWM_links, sizeof(int16_t));   // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  for (uint8_t i = 0; i < sizeof(int16_t); i++) {  //basic counter
-    ret.data[i] = bytes[i];                        //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = CAN_ID;            //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(int16_t);  //set the dlc to the size of our data type (int16)
-  //  return ret; //return the frame
-  mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
-}
-
-void send_CAN_current() {
-  byte bytes[sizeof(uint16_t)];                     //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &amps_links, sizeof(uint16_t));           // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  for (uint8_t i = 0; i < sizeof(uint16_t); i++) {  //basic counter
-    ret.data[i] = bytes[i];                         //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = CAN_ID;             //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(uint16_t);  //set the dlc to the size of our data type (int16)
-  //  return ret; //return the frame
-  mcp2515.sendMessage(&ret);  //we send the setpoint_PWM as set by the PID to can ID 51
-}
+//============================================== read can data ===========================================================================
 
 void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
-  //  Serial.print("CAN frame id: ");
-  //  Serial.println(canMsg.can_id);
+    //  Serial.print("CAN frame id: ");
+    //  Serial.println(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
-  //    Serial.print("CAN frame setpulsen: ");
+      Serial.print("CAN frame setpulsen: ");                                 //
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[0], canMsg.data[1]);  //byte 0-1 is int16_t pulsen voor
-  //    Serial.println(CAN_setpoint_pulsen);
-      CAN_offset_pulsen = int16_from_can(canMsg.data[2], canMsg.data[3]);  //byte 2-3 is int16_t pulsen offset
+      Serial.println(CAN_setpoint_pulsen);                                   //
+      CAN_offset_pulsen = int16_from_can(canMsg.data[2], canMsg.data[3]);    //byte 2-3 is int16_t pulsen offset
       CAN_offset_pulsen = constrain(CAN_offset_pulsen, -4190, 4190);
     }
     if (canMsg.can_id == 0x12c) {  //300
       homeing = canMsg.data[0];    // byte 0 is bool homen achter
-   //   Serial.print("CAN frame homing: ");
-    //  Serial.println(homeing);
+      has_homed = false;
+      Serial.print("CAN frame homing: ");
+      Serial.println(homeing);
     }
-
   }
 }
-/*
-  can_frame int_to_frame(int16_t i16, uint16_t can_id) {
-  byte bytes[sizeof(int16_t)]; //make an array and reserve the size of the datatype we want to send
-  memcpy(bytes, &i16, sizeof(int16_t)); // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
-  can_frame ret; //make a frame called "ret"
-  for (uint8_t i = 0; i < sizeof(int16_t); i++) { //basic counter
-    ret.data[i] = bytes[i]; //copy the data from bytes to their respective location in ret.bytes
-  }
-  ret.can_id = can_id; //set the can id of "ret" to our can id
-  ret.can_dlc = sizeof(int16_t); //set the dlc to the size of our data type (int16)
-  return ret; //return the frame
-  }
-*/
 
 int16_t int16_from_can(uint8_t b1, uint8_t b2) {
   // maakt van twee bytes een int16_t
   int16_t ret;
   ret = b1 | (int16_t)b2 << 8;
   return ret;
+}
+
+can_frame int16_t_to_frame(int16_t i16_1, int16_t i16_2, int16_t i16_3, int16_t i16_4, uint16_t can_id) {
+  byte bytes[sizeof(int16_t) * 4];                               // make an array and reserve the size of the datatype we want to send
+  memcpy(bytes, &i16_1, sizeof(int16_t));                        // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  memcpy(bytes + sizeof(int16_t), &i16_2, sizeof(int16_t));      // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  memcpy(bytes + sizeof(int16_t) * 2, &i16_3, sizeof(int16_t));  // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  memcpy(bytes + sizeof(int16_t) * 3, &i16_4, sizeof(int16_t));  // copy the content of i16 to the array bytes until we hit the size of the int16 datatype
+  can_frame ret;                                                 // make a frame called "ret"
+  for (uint8_t i = 0; i < sizeof(int16_t) * 4; i++) {            // basic counter
+    ret.data[i] = bytes[i];                                      // copy the data from bytes to their respective location in ret.bytes
+  }                                                              //
+  ret.can_id = can_id;                                           // set the can id of "ret" to our can id
+  ret.can_dlc = sizeof(int16_t) * 4;                             // set the dlc to the size of our data type (int16)
+  mcp2515.sendMessage(&ret);                                     // send the frame
+  return ret;                                                    // return the frame
 }

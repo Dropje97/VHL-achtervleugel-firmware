@@ -343,8 +343,8 @@ void read_CAN_data() {
   if (mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) {
     Serial.print("CAN frame id: ");
     Serial.println(canMsg.can_id);
-    if (canMsg.can_id == 0xC8) {  //is can msg ID is 200 in hex
-      Serial.print("CAN frame setpulsen: ");
+    if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
+      Serial.print("CAN frame setpulsen: ");                                 //
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[4], canMsg.data[5]);  //byte 4-5 is int16_t pulsen achter
       Serial.println(CAN_setpoint_pulsen);
     }
