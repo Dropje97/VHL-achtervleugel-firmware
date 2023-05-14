@@ -25,14 +25,11 @@ const uint8_t PID_interval = 10;             // iedere 10ms wordt de PID bereken
 const uint16_t CAN_send_interval = 450;      // de CAN berichten worden 100x per seconden verzonden.
 const uint16_t CAN_read_interval = 50;       // de CAN berichten worden 20x per seconden ontvangen. vanwege problemen met het genereren van de PWM voor de motor tijdens het lezen van de CAN lezen er de CAN minder vaak
 
-volatile int encoder_pulsen = 0;
-volatile int encoder_pulsen_prev = encoder_pulsen;
-
-uint16_t pot_val = 0;
+volatile int16_t encoder_pulsen = 0;
+volatile int16_t encoder_pulsen_prev = encoder_pulsen;
 volatile bool ENC_A;
 volatile bool ENC_B;
 
-uint32_t last_smoothing;
 uint32_t last_smoothing_time = 0;
 uint32_t last_amps_poll = 0;
 uint32_t last_serial_print = 0;
