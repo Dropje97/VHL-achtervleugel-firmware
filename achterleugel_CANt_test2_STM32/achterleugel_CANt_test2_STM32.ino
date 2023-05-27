@@ -295,7 +295,7 @@ void loop() {
       Serial.print(md.getM2CurrentMilliamps());
       Serial.print(" - ");
       Serial.println(overcurrent_limit);
-    */
+    
   }
 }
 

@@ -442,16 +442,21 @@ void loop() {
     */
 
 
-    /*  Serial.print(overcurrent_limit);
-    Serial.print(" - ");
-    Serial.print(amps_rechts);
-    Serial.print(" - ");
+    //Serial.print(overcurrent_limit);
+    //  Serial.print(" - ");
+    //  Serial.print(amps_rechts);
+    //  Serial.print(" - ");
+    //  Serial.print(amps_links);
+    //  Serial.print(" - ");
     Serial.print(CAN_setpoint_pulsen);
     Serial.print(" - ");
-   */
-    Serial.println(encoder_pulsen_rechts);
-    // Serial.print(" - ");
-    // Serial.println(PWM_rechts);
+    Serial.print(encoder_pulsen_links);
+    Serial.print(" - ");
+    Serial.print(encoder_pulsen_rechts);
+    Serial.print(" - ");
+    Serial.print(PWM_links);
+    Serial.print(" - ");
+    Serial.println(PWM_rechts);
 
 
     /*
@@ -510,7 +515,7 @@ void home() {
   const static uint16_t min_home_time = 5000;
   static uint32_t last_home_time = timer;
 
-  if (setpoint_home_PWM_links == 0) {  // als het homen nog niet begonnen is
+  if (setpoint_home_PWM_links == 0) {  // als het homen nog niet begonnen is. als links 0 is dan is rechts ook nul.
 #ifdef HOME_DEBUG
     Serial.println("Start homing");
 #endif
@@ -543,7 +548,7 @@ void home() {
           setpoint_home_PWM_rechts = -200;                           // begin met homen
           last_home_time = timer;
         } else { */
-      encoder_pulsen_links = -34;   // reset de pulsen.
+      encoder_pulsen_links = -34;   // reset de pulsen. de vleugel staat een beetje scheef. daarom -34 op te compenseren
       setpoint_pulsen_links = 0;    // reset het setpoint.
       setpoint_home_PWM_links = 0;  // stop met gas geven. de volgdende keer dat de void home() gedaan wordt zal de 100ms timer weer worden gereset.
       I_links = 0;                  // zet de I van de PID op 0 zodat de motor niet spontaan begint te draaien.
