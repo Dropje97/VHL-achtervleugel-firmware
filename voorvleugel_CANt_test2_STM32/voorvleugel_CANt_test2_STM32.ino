@@ -580,9 +580,9 @@ void read_CAN_data() {
     //  Serial.print("CAN frame id: ");
     //  Serial.println(canMsg.can_id);
     if (canMsg.can_id == 0xC8) {                                             //is can msg ID is 200 in hex
-      Serial.print("CAN frame setpulsen: ");                                 //
+    //  Serial.print("CAN frame setpulsen: ");                                 //
       CAN_setpoint_pulsen = int16_from_can(canMsg.data[0], canMsg.data[1]);  //byte 0-1 is int16_t pulsen voor
-      Serial.println(CAN_setpoint_pulsen);                                   //
+     // Serial.println(CAN_setpoint_pulsen);                                   //
       CAN_offset_pulsen = int16_from_can(canMsg.data[2], canMsg.data[3]);    //byte 2-3 is int16_t pulsen offset
       CAN_offset_pulsen = constrain(CAN_offset_pulsen, -4190, 4190);
     }
